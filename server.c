@@ -18,20 +18,6 @@ static void sighandler(int signo) {
 void subserver_logic(int client_socket){
   char buff[BUFFER_SIZE];
   read(client_socket, buff, BUFFER_SIZE);
-  int len = strlen(buff) - 1;
-  while(len >= 0) {
-    if(buff[len] >= 'A' && buff[len] <= 'Z') {
-      buff[len] += 13;
-      if(buff[len] > 'Z')
-        buff[len] -= 26;
-    }
-    if(buff[len] >= 'a' && buff[len] <= 'z') {
-      buff[len] -= 13;
-      if(buff[len] < 'a')
-        buff[len] += 26;
-    }
-    --len;
-  }
   write(client_socket, buff, BUFFER_SIZE);
 }
 
@@ -85,6 +71,21 @@ int server_setup() {
 }
 
 void serverStart() {
+  signal(SIGCHLD, sighandler);
+  int listen_socket = server_setup();
+  while(1) {
+    int client_socket = server_tcp_handshake(listen_socket);
+    pid_t p = fork();
+    if(p == 0) {
+      //printf("connected\n");
+      subserver_logic(client_socket);
+      return;
+    }
+  }
+  return;
+}
+
+void main() {
   signal(SIGCHLD, sighandler);
   int listen_socket = server_setup();
   while(1) {

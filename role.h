@@ -18,6 +18,12 @@
 //attack only kills if attack > defense !!!
 
 
+struct role {
+    int attack;
+    int defense;
+    int priority;
+}
+
 
 //priority: soon to be added... this is a wonderful little thing that will make our lives a lot easier
 //all role abilities in the game have a priority from 1 - 6 with 1 being highest 6 being lowered
