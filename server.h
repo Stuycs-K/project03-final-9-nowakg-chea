@@ -9,8 +9,8 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <sys/socket.h> 
+#include <sys/select.h>
 #include <netdb.h>
-#include <poll.h>
 
 #ifndef SERVER_H
 #define SERVER_H
