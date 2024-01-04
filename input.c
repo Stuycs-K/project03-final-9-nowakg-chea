@@ -17,11 +17,17 @@ void moveCursor(int x, int y) {
     printf("\033[%d;%dH", y, x);
 }
 
+int colorText(int color) {
+    printf("\033[%dm", color);
+}
+/*
 int main() {
     clearScreen();
     char s[256];
     query("testing", s, 256);
     moveCursor(0, 10);
+    colorText(COLOR_GRAY);
     printf("'%s'\n", s);
     return 0;
 }
+*/
