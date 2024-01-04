@@ -1,6 +1,7 @@
 #include "server.h"
 #include "input.h"
 #include "role.h"
+#include "player.h"
 
 void clientLogic(int server_socket){
   char buff[BUFFER_SIZE];

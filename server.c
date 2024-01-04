@@ -88,14 +88,27 @@ void serverStart() {
 void main() {
   signal(SIGCHLD, sighandler);
   int listen_socket = server_setup();
-  while(1) {
-    int client_socket = server_tcp_handshake(listen_socket);
-    pid_t p = fork();
-    if(p == 0) {
-      //printf("connected\n");
-      subserver_logic(client_socket);
-      return;
-    }
+  fd_set read_fds;
+  char buffer[100];
+
+  FD_ZERO(&read_fds);
+
+  //add listen_socket and stdin to the set
+  FD_SET(listen_socket, &read_fds);
+  //add stdin's file desciptor
+  FD_SET(STDIN_FILENO, &read_fds);
+
+  int i = select(listen_socket+1, &read_fds, NULL, NULL, NULL);
+
+  //if standard in, use fgets
+  if (FD_ISSET(STDIN_FILENO, &read_fds)) {
+    fgets(buffer, sizeof(buffer), stdin);
   }
+  //if socket, accept the connection
+  //assume this function works correctly
+  if (FD_ISSET(listen_socket, &read_fds)) {
+    client_socket = server_connect(listen_socket);
+  }
+
   return;
 }
