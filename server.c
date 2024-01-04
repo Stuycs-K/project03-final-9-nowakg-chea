@@ -1,4 +1,5 @@
 #include "server.h"
+#include "role.h"
 
 void err(int i, char*message){
   if(i < 0){
@@ -46,7 +47,7 @@ int server_tcp_handshake(int listen_socket){
 
     //accept the client connection
     client_socket = accept(listen_socket,(struct sockaddr *)&client_address, &sock_size);
-  
+
     return client_socket;
 }
 
@@ -64,12 +65,12 @@ int server_setup() {
 
   //create the socket
   int clientd = socket(results->ai_family, results->ai_socktype, results->ai_protocol);
-  
+
   //this code should get around the address in use error
   int yes = 1;
   int sockOpt =  setsockopt(clientd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
   err(sockOpt,"sockopt  error");
-  
+
   //bind the socket to address and port
   bind(clientd, results->ai_addr, results->ai_addrlen);
 
@@ -79,21 +80,21 @@ int server_setup() {
   //free the structs used by getaddrinfo
   free(hints);
   freeaddrinfo(results);
-  
+
   return clientd;
 }
 
-void serverStart() { 
+void serverStart() {
   signal(SIGCHLD, sighandler);
-  int listen_socket = server_setup(); 
+  int listen_socket = server_setup();
   while(1) {
     int client_socket = server_tcp_handshake(listen_socket);
     pid_t p = fork();
     if(p == 0) {
       //printf("connected\n");
       subserver_logic(client_socket);
-      return 0;
+      return;
     }
   }
-  return 0;
+  return;
 }
