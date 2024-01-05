@@ -3,15 +3,6 @@
 #include "role.h"
 #include "player.h"
 
-void clientLogic(int server_socket){
-  char buff[BUFFER_SIZE];
-  printf("Enter a string:\n");
-  fgets(buff, BUFFER_SIZE, stdin);
-  write(server_socket, buff, BUFFER_SIZE);
-  read(server_socket, buff, BUFFER_SIZE);
-  printf("Processed string: %s", buff);
-}
-
 /*Connect to the server
  *return the to_server socket descriptor
  *blocks until connection is made.*/
@@ -37,13 +28,18 @@ int client_tcp_handshake(char * server_address) {
 }
 
 int main(int argc, char *argv[] ) {
+  char buffer[BUFFER_SIZE];
   char* IP = "127.0.0.1";
   if(argc>1){
     IP=argv[1];
     //printf("'%s'\n", IP);
   }
   int server_socket = client_tcp_handshake(IP);
-  printf("client connected.\n");
-  clientLogic(server_socket);
+  query("Enter a name:", buffer, BUFFER_SIZE);
+  if(strcmp(buffer, "!start") == 0)
+    buffer[0] = '\a';
+  write(server_socket, buffer, BUFFER_SIZE);
+  read(server_socket, buffer, BUFFER_SIZE);
+  printf("%s\n", buffer);
   return 0;
 }

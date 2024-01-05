@@ -17,7 +17,7 @@ void moveCursor(int x, int y) {
     printf("\033[%d;%dH", y, x);
 }
 
-int colorText(int color) {
+void colorText(int color) {
     printf("\033[%dm", color);
 }
 /*
