@@ -64,18 +64,30 @@ int server_setup() {
   return clientd;
 }
 
+
+void sendMessage(char* message, struct player players[]){
+  //char messageCopy[BUFFER_SIZE];
+  printf("size: %lu\n",sizeof(struct player) / sizeof(players[0]));
+  for (int n = 0; n < sizeof(struct player) / sizeof(players[0]); n++){
+    //strcpy(messageCopy, message);
+    write(players[n].sockd, message, BUFFER_SIZE);
+  }
+}
+
+
 int main() {
   signal(SIGCHLD, sighandler);
   int listen_socket = server_setup();
   char buffer[BUFFER_SIZE];
   char serverBuff[BUFFER_SIZE];
-  struct player players[15];
+  struct player allPlayers[MAX_PLAYERS];
   int playerCount = 0;
   int joinPhase = 1;
 
-  //setup FD select system
+  //FD select system
   fd_set read_fds;
 
+  //PLAYER JOINING
   while(joinPhase){
     FD_ZERO(&read_fds);
     //add listen_socket and stdin to the set
@@ -93,8 +105,6 @@ int main() {
       if(strcmp(serverBuff, "/start\n") == 0){
         printf("Starting the game!\n");
         joinPhase = 0;
-        break;
-        //end the loop
       }
     }
 
@@ -103,20 +113,27 @@ int main() {
       int temp = server_tcp_handshake(listen_socket);
       read(temp, buffer, BUFFER_SIZE);
 
-      struct player* curr = players + playerCount;
-      strcpy(curr->name, buffer);
-      curr->sockd = temp;
-      curr->alive = 1;
+      struct player newPlayer;
+      strcpy(newPlayer.name, buffer);
+      newPlayer.sockd = temp;
+      newPlayer.alive = 1;
+      allPlayers[playerCount] = newPlayer;
+      printf("playercount: %d\n", playerCount);
       ++playerCount;
-      printf("Player connected: %s\n", curr->name );
+      printf("Player connected: %s\n", newPlayer.name );
     }
 
     if(playerCount == MAX_PLAYERS) joinPhase = 0;
   }
+
+  //ROLE DISTRIBUTION NEEDS TO GO HERE
+
+
+
   printf("Players connected: \n");
   for(int i = 0; i < playerCount; ++i) {
-    printf("%s\n", players[i].name);
-    write(players[i].sockd, "starting", 9);
+    printf("%s\n", allPlayers[i].name);
   }
+  sendMessage("you have been conneced to the server!", allPlayers);
   return 0;
 }
