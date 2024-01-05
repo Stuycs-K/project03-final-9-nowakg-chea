@@ -66,9 +66,7 @@ int server_setup() {
 
 
 void sendMessage(char* message, struct player players[]){
-  //char messageCopy[BUFFER_SIZE];
-  printf("size: %lu\n",sizeof(struct player) / sizeof(players[0]));
-  for (int n = 0; n < sizeof(struct player) / sizeof(players[0]); n++){
+  for (int n = 0; players[n].sockd != 0; n++){
     //strcpy(messageCopy, message);
     write(players[n].sockd, message, BUFFER_SIZE);
   }
@@ -80,7 +78,9 @@ int main() {
   int listen_socket = server_setup();
   char buffer[BUFFER_SIZE];
   char serverBuff[BUFFER_SIZE];
-  struct player allPlayers[MAX_PLAYERS];
+
+  struct player* allPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
+
   int playerCount = 0;
   int joinPhase = 1;
 
@@ -118,7 +118,6 @@ int main() {
       newPlayer.sockd = temp;
       newPlayer.alive = 1;
       allPlayers[playerCount] = newPlayer;
-      printf("playercount: %d\n", playerCount);
       ++playerCount;
       printf("Player connected: %s\n", newPlayer.name );
     }
