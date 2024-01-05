@@ -30,3 +30,5 @@ void sendMessage(struct playerMessage data);
 
 //chats will just made as a list of the stuct players
 //Mafia team will just be a list of struct players, and then when you send a message you can send a message
+
+#endif

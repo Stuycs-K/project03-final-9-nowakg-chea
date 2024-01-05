@@ -22,7 +22,7 @@ struct role {
     int attack;
     int defense;
     int priority;
-}
+};
 
 
 //priority: soon to be added... this is a wonderful little thing that will make our lives a lot easier
