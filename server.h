@@ -17,7 +17,10 @@
 
 #define PORT "19230"
 #define BUFFER_SIZE 1024
+
+struct player {int sockd; char name[16]; int alive; int role;};
+
 void err(int i, char*message);
-void serverStart();
+//void serverStart();
 
 #endif
