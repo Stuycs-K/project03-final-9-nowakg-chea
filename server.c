@@ -15,12 +15,6 @@ static void sighandler(int signo) {
   }
 }
 
-void subserver_logic(int client_socket){
-  char buff[BUFFER_SIZE];
-  read(client_socket, buff, BUFFER_SIZE);
-  write(client_socket, buff, BUFFER_SIZE);
-}
-
 /*Accept a connection from a client
  *return the to_client socket descriptor
  *blocks until connection is made.
@@ -70,45 +64,30 @@ int server_setup() {
   return clientd;
 }
 
-void serverStart() {
+int main() {
   signal(SIGCHLD, sighandler);
   int listen_socket = server_setup();
-  while(1) {
-    int client_socket = server_tcp_handshake(listen_socket);
-    pid_t p = fork();
-    if(p == 0) {
-      //printf("connected\n");
-      subserver_logic(client_socket);
-      return;
+  char buffer[BUFFER_SIZE];
+  struct player players[15];
+  int playerCount = 0;
+  int joinPhase = 1;
+  while(joinPhase) {
+    int temp = server_tcp_handshake(listen_socket);
+    read(temp, buffer, BUFFER_SIZE);
+    if(buffer[0] == '\a') { //client sends this to start
+      joinPhase = 0;
+    } else {
+      struct player* curr = players + playerCount;
+      strcpy(curr->name, buffer);
+      curr->sockd = temp;
+      curr->alive = 1;
+      ++playerCount;
     }
+    if(playerCount == 15) joinPhase = 0;
   }
-  return;
-}
-
-void main() {
-  signal(SIGCHLD, sighandler);
-  int listen_socket = server_setup();
-  fd_set read_fds;
-  char buffer[100];
-
-  FD_ZERO(&read_fds);
-
-  //add listen_socket and stdin to the set
-  FD_SET(listen_socket, &read_fds);
-  //add stdin's file desciptor
-  FD_SET(STDIN_FILENO, &read_fds);
-
-  int i = select(listen_socket+1, &read_fds, NULL, NULL, NULL);
-
-  //if standard in, use fgets
-  if (FD_ISSET(STDIN_FILENO, &read_fds)) {
-    fgets(buffer, sizeof(buffer), stdin);
+  for(int i = 0; i < playerCount; ++i) {
+    printf("%s\n", players[i].name);
+    write(players[i].sockd, "starting", 9);
   }
-  //if socket, accept the connection
-  //assume this function works correctly
-  if (FD_ISSET(listen_socket, &read_fds)) {
-    client_socket = server_connect(listen_socket);
-  }
-
-  return;
+  return 0;
 }
