@@ -10,5 +10,5 @@
 void clearScreen();
 void query(char* message, char* response, int buffSize);
 void moveCursor(int x, int y);
-int colorText(int color);
+void colorText(int color);
 #endif
