@@ -8,7 +8,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <sys/wait.h>
-#include <sys/socket.h> 
+#include <sys/socket.h>
 #include <sys/select.h>
 #include <netdb.h>
 
@@ -17,6 +17,7 @@
 
 #define PORT "19230"
 #define BUFFER_SIZE 1024
+#define MAX_PLAYERS 15
 
 struct player {int sockd; char name[16]; int alive; int role;};
 

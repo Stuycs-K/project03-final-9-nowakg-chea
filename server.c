@@ -71,19 +71,49 @@ int main() {
   struct player players[15];
   int playerCount = 0;
   int joinPhase = 1;
-  while(joinPhase) {
-    int temp = server_tcp_handshake(listen_socket);
-    read(temp, buffer, BUFFER_SIZE);
-    if(buffer[0] == '\a') { //client sends this to start
-      joinPhase = 0;
-    } else {
+
+  //setup FD select system
+  fd_set read_fds;
+
+
+  while(joinPhase){
+    FD_ZERO(&read_fds);
+    //add listen_socket and stdin to the set
+    FD_SET(listen_socket, &read_fds);
+    //add stdin's file desciptor
+    FD_SET(STDIN_FILENO, &read_fds);
+
+    //get the STDIN and listen_socket to both be listened to
+    int i = select(listen_socket+1, &read_fds, NULL, NULL, NULL);
+    err(i, "server select/socket error");
+
+    if(FD_ISSET(listen_socket, &read_fds)){
+      //temp is the joining player
+      int temp = server_tcp_handshake(listen_socket);
+      read(temp, buffer, BUFFER_SIZE);
+
       struct player* curr = players + playerCount;
       strcpy(curr->name, buffer);
       curr->sockd = temp;
       curr->alive = 1;
       ++playerCount;
+      printf("Player connected: %s\n", curr->name );
     }
-    if(playerCount == 15) joinPhase = 0;
+
+    //have to put thise before the FD_ISSET for stdin because if you dont the client will not let the server take stdin
+    if(FD_ISSET(STDIN_FILENO, &read_fds)){
+      //server should be able to start the game
+      if(strcmp(buffer, "/start") == 0){
+        printf("Starting the game!\n");
+        joinPhase = 0;
+        break;
+        //end the loop
+      }
+    }
+
+
+
+    if(playerCount == MAX_PLAYERS) joinPhase = 0;
   }
   for(int i = 0; i < playerCount; ++i) {
     printf("%s\n", players[i].name);

@@ -1,7 +1,7 @@
 compile: server_compile client_compile
-server: server_compile
+server: server_compile client_compile
 	@./server
-client: client_compile
+client: client_compile server_compile
 	@./client
 server_compile: server.o role.o
 	@gcc -o server server.o

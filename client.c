@@ -35,7 +35,8 @@ int main(int argc, char *argv[] ) {
     //printf("'%s'\n", IP);
   }
   int server_socket = client_tcp_handshake(IP);
-  query("Enter a name:", buffer, BUFFER_SIZE);
+
+  query("Enter a name:", buffer, BUFFER_SIZE); 
   if(strcmp(buffer, "!start") == 0)
     buffer[0] = '\a';
   write(server_socket, buffer, BUFFER_SIZE);
