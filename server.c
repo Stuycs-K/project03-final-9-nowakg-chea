@@ -81,6 +81,8 @@ int main() {
   char buffer[BUFFER_SIZE];
   char serverBuff[BUFFER_SIZE];
   struct player allPlayers[MAX_PLAYERS];
+  struct player townPlayers[MAX_PLAYERS];
+  struct player mafiaPlayers[MAX_PLAYERS];
   int playerCount = 0;
   int joinPhase = 1;
 
@@ -102,7 +104,7 @@ int main() {
     if(FD_ISSET(STDIN_FILENO, &read_fds)){
       //server should be able to start the game
       fgets(serverBuff, sizeof(serverBuff), stdin);
-      if(strcmp(serverBuff, "/start\n") == 0){
+      if(strcmp(serverBuff, "/start\n") == 0 && playerCount >= 7){
         printf("Starting the game!\n");
         joinPhase = 0;
       }
@@ -126,14 +128,36 @@ int main() {
     if(playerCount == MAX_PLAYERS) joinPhase = 0;
   }
 
-  //ROLE DISTRIBUTION NEEDS TO GO HERE
-
-
-
   printf("Players connected: \n");
   for(int i = 0; i < playerCount; ++i) {
     printf("%s\n", allPlayers[i].name);
   }
   sendMessage("you have been conneced to the server!", allPlayers);
+
+
+
+  //ROLE DISTRIBUTION
+  //figuring out how many of each (will go 610, 710, 720, 721, 821, 831, 832, 932, 942)
+  int townCount = 6;
+  int mafiaCount = 1;
+  int neutralCount = 0;
+  for(int i = 7; i < playerCount; ++i) {
+    if(i % 3 == 1) ++townCount;
+    if(i % 3 == 2) ++mafiaCount;
+    if(i % 3 == 0) ++neutralCount;
+  }
+  
+  for(int i = 0; i < playerCount; ++i) {
+    int team = -1, role = -1;
+    int randFile = open("/dev/random");
+    read(randFile, &team, sizeof(int));
+    read(randFile, &role, sizeof(int));
+    close(randFile);
+    if(team < 0) team *= -1;
+    if(neutralCount > 0) team %= 3;
+    else team %= 2;
+     
+  }
+
   return 0;
 }
