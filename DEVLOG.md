@@ -44,7 +44,7 @@ Researched Town of Salem roles, worked on readme
 Reorganized file structure and deleted networking.c/.h, added input.c for special printing functions
 
 ### 2024-01-04 - Brief description
-Added color printing to input.c
+Added color printing to input.c and wrote new server and client logic in their mains to handle the join phase logic. I think join phase is good for now, only problem is a you have to start a client and send !start as your username to start the game
 
 ### 2024-01-05 THROUGH 2024-01-07 - Brief description
 Expanded description including how much time was spent on task.
