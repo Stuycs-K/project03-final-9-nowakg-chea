@@ -38,13 +38,13 @@ Expanded description including how much time was spent on task.
 ## Andrew
 
 ### 2024-01-02 - Brief description
-Expanded description including how much time was spent on task.
+Researched Town of Salem roles, worked on readme
 
 ### 2024-01-03 - Brief description
-Expanded description including how much time was spent on task.
+Reorganized file structure and deleted networking.c/.h, added input.c for special printing functions
 
 ### 2024-01-04 - Brief description
-Expanded description including how much time was spent on task.
+Added color printing to input.c
 
 ### 2024-01-05 THROUGH 2024-01-07 - Brief description
 Expanded description including how much time was spent on task.
