@@ -112,29 +112,16 @@ int main() {
     if(FD_ISSET(listen_socket, &read_fds)){
       //temp is the joining player
       int temp = server_tcp_handshake(listen_socket);
-      int bytes = read(temp, buffer, BUFFER_SIZE);
-      if(bytes == 0) { //someone disconnected
-        for(int i = 0; i < playerCount; ++i) {
-          if(allPlayers[i].sockd == temp) { //if they disconnected
-            bytes = -1;
-          }
-          if(bytes == -1) { //if we are after the gone player in the list
-            if(i < playerCount - 1) allPlayers[i] = allPlayers[i+1];
-          }
-        }
-        --playerCount;
-      } else {
-        struct player newPlayer;
-        strcpy(newPlayer.name, buffer);
-        newPlayer.sockd = temp;
-        newPlayer.alive = 1;
-        allPlayers[playerCount] = newPlayer;
-        printf("playercount: %d\n", playerCount);
-        ++playerCount;
-        printf("Player connected: %s\n", newPlayer.name );
-      }
+      read(temp, buffer, BUFFER_SIZE);
+      struct player newPlayer;
+      strcpy(newPlayer.name, buffer);
+      newPlayer.sockd = temp;
+      newPlayer.alive = 1;
+      allPlayers[playerCount] = newPlayer;
+      printf("playercount: %d\n", playerCount);
+      ++playerCount;
+      printf("Player connected: %s\n", newPlayer.name );
     }
-
     if(playerCount == MAX_PLAYERS) joinPhase = 0;
   }
 
@@ -156,8 +143,9 @@ int main() {
     if(i % 3 == 2) ++mafiaCount;
     if(i % 3 == 0) ++neutralCount;
   }
-  
+  //start giving roles to each player
   for(int i = 0; i < playerCount; ++i) {
+    //decide the team
     printf("Player: %d\n", i);
     int team = -1, role = -1;
     int randFile = open("/dev/random", O_RDONLY);
@@ -184,6 +172,7 @@ int main() {
       team = 2;
     }
     printf("Team: %d\n", team);
+    //decide the role
     if(team == T_TOWN) {
       role %= R_MAXTOWNROLE + 1;
       --townCount;
@@ -214,6 +203,7 @@ int main() {
       }
     }
     printf("Role: %d\n", role);
+    //assign to lists
     allPlayers[i].team = team;
     allPlayers[i].role = role;
     if(team == T_TOWN) townPlayers[role] = allPlayers[i];
@@ -221,7 +211,7 @@ int main() {
     if(team == T_NEUTRAL) neutralPlayers[role] = allPlayers[i];
   }
   for(int i = 0; i < playerCount; ++i) {
-    printf("%s: %d %d\n", allPlayers[i].name, allPlayers[i].team, allPlayers[i].role);
+    printf("%s: %s %s\n", allPlayers[i].name, intToTeam(allPlayers[i].team), intToRole(allPlayers[i].role, allPlayers[i].team));
   }
   return 0;
 }
