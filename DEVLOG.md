@@ -15,6 +15,8 @@ worked on player structs work on role struct beginning to work on server and cli
 
 ### 2024-01-05 THROUGH 2024-01-07 - Brief description
 worked on having the server send messages to players (chat feature)
+- need to work on timer by having a
+FD_ISSET (child process) and have that run a timer and dictate when day/night cycles are and when public execution formating is
 
 ### 2024-01-08 - Brief description
 Expanded description including how much time was spent on task.
