@@ -96,4 +96,7 @@ struct role {
 // 1 jester (wants to be public executed) or 1 executioner (wants to execute someone)
 // 1 serial killer (kills one person every day)
 
+char* intToTeam(int i);
+char* intToRole(int role, int team);
+
 #endif
