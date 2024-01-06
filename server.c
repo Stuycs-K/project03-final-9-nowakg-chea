@@ -64,16 +64,10 @@ int server_setup() {
   return clientd;
 }
 
-
+// send a string to a list of players
 void sendMessage(char* message, struct player allPlayers[]){
   for (int n = 0; allPlayers[n].sockd != 0; n++){
     write(allPlayers[n].sockd, message, BUFFER_SIZE);
-  }
-}
-
-void sendGameState(int state, struct player allPlayers[]){
-  for (int n = 0; allPlayers[n].sockd != 0; n++){
-    write(allPlayers[n].sockd, &state, BUFFER_SIZE);
   }
 }
 
@@ -147,6 +141,9 @@ int main() {
 
 
 
+
+
+
   //ROLE DISTRIBUTION
   //figuring out how many of each (will go 610, 710, 720, 721, 821, 831, 832, 932, 942)
   int townCount = 6;
@@ -160,7 +157,7 @@ int main() {
   //start giving roles to each player
   for(int i = 0; i < playerCount; ++i) {
     //decide the team
-    printf("Player: %d\n", i);
+    //printf("Player: %d\n", i);
     int team = -1, role = -1;
     int randFile = open("/dev/random", O_RDONLY);
     read(randFile, &team, sizeof(int));
@@ -185,7 +182,7 @@ int main() {
     } else if(neutralCount > 0) {
       team = 2;
     }
-    printf("Team: %d\n", team);
+  //  printf("Team: %d\n", team);
     //decide the role
     if(team == T_TOWN) {
       role %= R_MAXTOWNROLE + 1;
@@ -216,7 +213,7 @@ int main() {
         role = R_SERIALKILLER;
       }
     }
-    printf("Role: %d\n", role);
+    //printf("Role: %d\n", role);
     //assign to lists
     allPlayers[i].team = team;
     allPlayers[i].role = role;
@@ -234,32 +231,49 @@ int main() {
   }
 
 
+
+
+
+
+
+
+
   //BEGIN THE GAME
   int win = -1; //will be equal to the team that wins so like T_MAFIA or T_TOWN
   int subserverPipe[2];
-  pipe(subserverPipe);
+  err(pipe(subserverPipe), "pipe fail in main loop of game");
   int gameState = GAMESTATE_PRE_GAME;
-  pid_t subserver;
-  subserver = fork();
-  err(subserver, "fork fail in game beginning");
 
-  if(subserver == 0){
-    write( subserverPipe[PIPE_WRITE], GAMESTATE_DAY, sizeof(int));
+  //the fork stuff works but just not with the select function
+  // pid_t subserver;
+  // subserver = fork();
+  // err(subserver, "fork fail in game beginning");
 
-    printf("subserber writing %d, (pid: %d)\n", GAMESTATE_DAY, getpid());
-    close(subserverPipe[PIPE_READ]);
-    close(subserverPipe[PIPE_WRITE]);
-    exit(0);
-  }
+
+  //THIS STOPS SELECT FROM WORKING AND IM VERY CONFUSED AS TO WHY
+  // if(subserver == 0){
+  //   write( subserverPipe[PIPE_WRITE], GAMESTATE_DAY, sizeof(int));
+  //
+  //   printf("subserber writing %d, (pid: %d)\n", GAMESTATE_DAY, getpid());
+  //   // close(subserverPipe[PIPE_READ]);
+  //   // close(subserverPipe[PIPE_WRITE]);
+  //   exit(0);
+  // }
+
 
   while(win < 0){
+    printf("this pid: %d\n", getpid());
+
     FD_ZERO(&read_fds);
     //add listen_socket and stdin to the set
     FD_SET(listen_socket, &read_fds);
     //add the pipe file descriptor
     FD_SET(subserverPipe[PIPE_READ], &read_fds);
+    //add the pipe file descriptor
+    //FD_SET(STDIN_FILENO, &read_fds);
 
     //get the pipe read and listen_socket to both be listened to
+    //THIS DOES NOT WORK WHEN THE COMMENTED CODE ABOVE IS UNCOMMENTED
     int i = select(listen_socket+1, &read_fds, NULL, NULL, NULL);
     err(i, "server select/socket error in main game loop");
 
@@ -280,23 +294,6 @@ int main() {
       sendMessage("\n\nGAME: It is now daytime! Talk amongst the townfolk.\n\n", allPlayers);
     }
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
