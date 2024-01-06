@@ -1,6 +1,46 @@
 #ifndef ROLE_H
 #define ROLE_H
 
+#define T_TOWN 0
+#define T_MAFIA 1
+#define T_NEUTRAL 2
+
+//TOWN ROLES
+//above priority 1 (special)
+#define R_VETERAN 0 //only when on alert
+//priority 1
+#define R_MEDIUM 1
+#define R_RETROBUTIONIST 2
+//priority 3
+#define R_DOCTOR 3
+//priority 4
+#define R_LOOKOUT 4
+#define R_SHERIFF 5
+//priority 5
+#define R_JAILOR 6 //priority 5 when executing
+#define R_VIGILANTE 7 //priority 5 when killing someone, top priority when committing suicide
+//no night abilities
+#define R_MAYOR 8
+#define R_MAXTOWNROLE 8
+
+//MAFIA ROLES
+//priority 3
+#define R_BLACKMAILER 0
+//priority 4
+#define R_CONSIGLIERE 1
+//priority 5
+#define R_GODFATHER 2
+#define R_MAFIOSO 3
+#define R_MAXMAFIAROLE 3
+
+//NEUTRAL ROLES
+//priority 5
+#define R_SERIALKILLER 0
+//no night abilities
+#define R_JESTER 1 //haunting is during daytime and thus has no priority number
+#define R_EXECUTIONER 2
+#define R_MAXNEUTRALROLE 2
+
 #define PUBLIC_EXECUTE 4
 #define UNSTOPPABLE_ATTACK 3
 #define POWERFUL_ATTACK 2
@@ -53,7 +93,10 @@ struct role {
 //
 //
 // neutral
-// 1 jester / executioner (jestery wants to be public executed, executioner wants to execute someone. )
+// 1 jester (wants to be public executed) or 1 executioner (wants to execute someone)
 // 1 serial killer (kills one person every day)
+
+char* intToTeam(int i);
+char* intToRole(int role, int team);
 
 #endif

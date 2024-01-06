@@ -20,7 +20,7 @@
 #define BUFFER_SIZE 1024
 #define MAX_PLAYERS 15
 
-struct player {int sockd; char name[16]; int alive; int role;};
+struct player {int sockd; char name[16]; int alive; int team; int role;};
 
 void err(int i, char*message);
 //void serverStart();

@@ -49,7 +49,8 @@ Reorganized file structure and deleted networking.c/.h, added input.c for specia
 Added color printing to input.c and wrote new server and client logic in their mains to handle the join phase logic. I think join phase is good for now, only problem is a you have to start a client and send !start as your username to start the game
 
 ### 2024-01-05 THROUGH 2024-01-07 - Brief description
-Expanded description including how much time was spent on task.
+Wrote a random role assigner. Because it goes in join order and there's a lot more town slots, later joining players are much more likely to be town, so not truly random, but good enough.
+Also added constants for roles and functions to convert those constants to the names for convenience.
 
 ### 2024-01-08 - Brief description
 Expanded description including how much time was spent on task.

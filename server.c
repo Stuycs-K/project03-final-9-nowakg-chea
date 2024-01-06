@@ -65,10 +65,10 @@ int server_setup() {
 }
 
 
-void sendMessage(char* message, struct player players[]){
-  for (int n = 0; players[n].sockd != 0; n++){
+void sendMessage(char* message, struct player allPlayers[]){
+   for (int n = 0; allPlayers[n].sockd != 0; n++){
     //strcpy(messageCopy, message);
-    write(players[n].sockd, message, BUFFER_SIZE);
+    write(allPlayers[n].sockd, message, BUFFER_SIZE);
   }
 }
 
@@ -78,10 +78,10 @@ int main() {
   int listen_socket = server_setup();
   char buffer[BUFFER_SIZE];
   char serverBuff[BUFFER_SIZE];
-
   struct player* allPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
   struct player* townPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
-  struct player* mafiaPlayer = calloc(sizeof(struct player), MAX_PLAYERS);
+  struct player* mafiaPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
+  struct player* neutralPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
   int playerCount = 0;
   int joinPhase = 1;
 
@@ -113,16 +113,15 @@ int main() {
       //temp is the joining player
       int temp = server_tcp_handshake(listen_socket);
       read(temp, buffer, BUFFER_SIZE);
-
       struct player newPlayer;
       strcpy(newPlayer.name, buffer);
       newPlayer.sockd = temp;
       newPlayer.alive = 1;
       allPlayers[playerCount] = newPlayer;
+      printf("playercount: %d\n", playerCount);
       ++playerCount;
       printf("Player connected: %s\n", newPlayer.name );
     }
-
     if(playerCount == MAX_PLAYERS) joinPhase = 0;
   }
 
@@ -144,18 +143,75 @@ int main() {
     if(i % 3 == 2) ++mafiaCount;
     if(i % 3 == 0) ++neutralCount;
   }
-  
+  //start giving roles to each player
   for(int i = 0; i < playerCount; ++i) {
+    //decide the team
+    printf("Player: %d\n", i);
     int team = -1, role = -1;
-    int randFile = open("/dev/random");
+    int randFile = open("/dev/random", O_RDONLY);
     read(randFile, &team, sizeof(int));
     read(randFile, &role, sizeof(int));
     close(randFile);
     if(team < 0) team *= -1;
-    if(neutralCount > 0) team %= 3;
-    else team %= 2;
-     
+    if(role < 0) role *= -1;
+    if(townCount > 0 && mafiaCount > 0 && neutralCount > 0) {
+      team %= 3;
+    } else if(townCount == 0 && mafiaCount > 0 && neutralCount > 0) {
+      team %= 2; //0 or 1
+      ++team; // 1 or 2
+    } else if(townCount > 0 && mafiaCount == 0 && neutralCount > 0) {
+      team %= 2; //0 or 1
+      if(team == 1) ++team; //0 or 2
+    } else if(townCount > 0 && mafiaCount > 0 && neutralCount == 0) {
+      team %= 2; //0 or 1
+    } else if(townCount > 0) {
+      team = 0;
+    } else if(mafiaCount > 0) {
+      team = 1;
+    } else if(neutralCount > 0) {
+      team = 2;
+    }
+    printf("Team: %d\n", team);
+    //decide the role
+    if(team == T_TOWN) {
+      role %= R_MAXTOWNROLE + 1;
+      --townCount;
+      while(townPlayers[role].sockd != 0) {
+        if(++role > R_MAXTOWNROLE) role = 0;
+      }
+    }
+    if(team == T_MAFIA) {
+      if(playerCount <= 8) {
+        role = R_GODFATHER;
+      } else if(playerCount <= 11) {
+        if(mafiaPlayers[R_GODFATHER].sockd == 0) role = R_GODFATHER;
+        else role = R_MAFIOSO;
+      } else {
+        if(mafiaPlayers[R_GODFATHER].sockd == 0) role = R_GODFATHER;
+        else if(mafiaPlayers[R_MAFIOSO].sockd == 0) role = R_MAFIOSO;
+        else role = (role %= 2) ? R_BLACKMAILER : R_CONSIGLIERE; //randomly chooses between the two
+      }
+      --mafiaCount;
+    }
+    if(team == T_NEUTRAL) {
+      role %= R_MAXNEUTRALROLE + 1;
+      --neutralCount;
+      if(role == R_JESTER && neutralPlayers[R_EXECUTIONER].sockd != 0) {
+        role = R_SERIALKILLER;
+      } else if(role == R_EXECUTIONER && neutralPlayers[R_JESTER].sockd != 0) {
+        role = R_SERIALKILLER;
+      }
+    }
+    printf("Role: %d\n", role);
+    //assign to lists
+    allPlayers[i].team = team;
+    allPlayers[i].role = role;
+    if(team == T_TOWN) townPlayers[role] = allPlayers[i];
+    if(team == T_MAFIA) mafiaPlayers[role] = allPlayers[i];
+    if(team == T_NEUTRAL) neutralPlayers[role] = allPlayers[i];
   }
-
+  for(int i = 0; i < playerCount; ++i) {
+    printf("%s: %s %s\n", allPlayers[i].name, intToTeam(allPlayers[i].team), intToRole(allPlayers[i].role, allPlayers[i].team));
+  }
   return 0;
 }
