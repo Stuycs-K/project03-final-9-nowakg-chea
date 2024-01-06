@@ -1,5 +1,7 @@
 #include "role.h"
 
+
+
 char* intToTeam(int i) {
     if(i == T_TOWN) return "Town";
     if(i == T_MAFIA) return "Mafia";

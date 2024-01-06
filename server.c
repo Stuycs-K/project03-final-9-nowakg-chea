@@ -66,9 +66,14 @@ int server_setup() {
 
 
 void sendMessage(char* message, struct player allPlayers[]){
-   for (int n = 0; allPlayers[n].sockd != 0; n++){
-    //strcpy(messageCopy, message);
+  for (int n = 0; allPlayers[n].sockd != 0; n++){
     write(allPlayers[n].sockd, message, BUFFER_SIZE);
+  }
+}
+
+void sendGameState(int state, struct player allPlayers[]){
+  for (int n = 0; allPlayers[n].sockd != 0; n++){
+    write(allPlayers[n].sockd, &state, BUFFER_SIZE);
   }
 }
 
@@ -77,7 +82,6 @@ int main() {
   signal(SIGCHLD, sighandler);
   int listen_socket = server_setup();
   char buffer[BUFFER_SIZE];
-  char serverBuff[BUFFER_SIZE];
   struct player* allPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
   struct player* townPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
   struct player* mafiaPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
@@ -102,8 +106,18 @@ int main() {
 
     if(FD_ISSET(STDIN_FILENO, &read_fds)){
       //server should be able to start the game
-      fgets(serverBuff, sizeof(serverBuff), stdin);
-      if(strcmp(serverBuff, "/start\n") == 0 && playerCount >= 7){
+      fgets(buffer, sizeof(buffer), stdin);
+      if(strcmp(buffer, "/start\n") == 0){
+        // if(playerCount >= 7){
+        //   printf("Starting the game!\n");
+        //   joinPhase = 0;
+        // }
+        // else{
+        //   printf("You need at least 7 players to start the game! There are only %d players in the lobby.\n", playerCount);
+        // }
+        //
+        //REVERT BACK TO THIS ^^ ONCE WE GET A TESTER THAT CAN GENERATE 7 PLAYERS
+
         printf("Starting the game!\n");
         joinPhase = 0;
       }
@@ -118,9 +132,9 @@ int main() {
       newPlayer.sockd = temp;
       newPlayer.alive = 1;
       allPlayers[playerCount] = newPlayer;
-      printf("playercount: %d\n", playerCount);
       ++playerCount;
       printf("Player connected: %s\n", newPlayer.name );
+      printf("Currently %d players\n", playerCount);
     }
     if(playerCount == MAX_PLAYERS) joinPhase = 0;
   }
@@ -210,8 +224,83 @@ int main() {
     if(team == T_MAFIA) mafiaPlayers[role] = allPlayers[i];
     if(team == T_NEUTRAL) neutralPlayers[role] = allPlayers[i];
   }
+
+  sendMessage("GAME: You're role and team is...", allPlayers);
+
   for(int i = 0; i < playerCount; ++i) {
     printf("%s: %s %s\n", allPlayers[i].name, intToTeam(allPlayers[i].team), intToRole(allPlayers[i].role, allPlayers[i].team));
+    write(allPlayers[i].sockd, intToRole(allPlayers[i].role, allPlayers[i].team), BUFFER_SIZE);
+    write(allPlayers[i].sockd, intToTeam(allPlayers[i].team), BUFFER_SIZE);
   }
+
+
+  //BEGIN THE GAME
+  int win = -1; //will be equal to the team that wins so like T_MAFIA or T_TOWN
+  int subserverPipe[2];
+  pipe(subserverPipe);
+  int gameState = GAMESTATE_PRE_GAME;
+  pid_t subserver;
+  subserver = fork();
+  err(subserver, "fork fail in game beginning");
+
+  if(subserver == 0){
+    write( subserverPipe[PIPE_WRITE], GAMESTATE_DAY, sizeof(int));
+
+    printf("subserber writing %d, (pid: %d)\n", GAMESTATE_DAY, getpid());
+    close(subserverPipe[PIPE_READ]);
+    close(subserverPipe[PIPE_WRITE]);
+    exit(0);
+  }
+
+  while(win < 0){
+    FD_ZERO(&read_fds);
+    //add listen_socket and stdin to the set
+    FD_SET(listen_socket, &read_fds);
+    //add the pipe file descriptor
+    FD_SET(subserverPipe[PIPE_READ], &read_fds);
+
+    //get the pipe read and listen_socket to both be listened to
+    int i = select(listen_socket+1, &read_fds, NULL, NULL, NULL);
+    err(i, "server select/socket error in main game loop");
+
+
+    if(FD_ISSET(listen_socket, &read_fds)){
+      if(gameState == GAMESTATE_DAY){
+        read(listen_socket, buffer, BUFFER_SIZE);
+        sendMessage(buffer, allPlayers);
+      }
+    }
+
+    if(FD_ISSET(subserverPipe[PIPE_READ], &read_fds)){
+      gameState = subserverPipe[PIPE_READ];
+      printf("gameState is now: %d\n", gameState);
+    }
+
+    if(gameState == GAMESTATE_DAY){
+      sendMessage("\n\nGAME: It is now daytime! Talk amongst the townfolk.\n\n", allPlayers);
+    }
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   return 0;
 }

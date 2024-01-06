@@ -36,11 +36,18 @@ int main(int argc, char *argv[] ) {
   }
   int server_socket = client_tcp_handshake(IP);
 
-  query("Enter a name:", buffer, BUFFER_SIZE); 
-  if(strcmp(buffer, "!start") == 0)
-    buffer[0] = '\a';
+  query("Enter a name:", buffer, BUFFER_SIZE);
   write(server_socket, buffer, BUFFER_SIZE);
-  read(server_socket, buffer, BUFFER_SIZE);
-  printf("%s\n", buffer);
+  printf("Please wait for the server to start the game...\n");
+
+
+  //for now, just have the client read from the server
+  while(1){
+    //read will be 0 bytes when the server doesn't send a message
+    if(read(server_socket, buffer, BUFFER_SIZE) > 0){
+      printf("%s\n", buffer);
+    }
+  }
+
   return 0;
 }
