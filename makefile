@@ -4,7 +4,7 @@ server: server_compile client_compile
 client: client_compile server_compile
 	@./client
 server_compile: server.o role.o
-	@gcc -o server server.o
+	@gcc -o server server.o role.o
 client_compile: client.o role.o input.o
 	@gcc -o client client.o role.o input.o
 server.o: server.c role.h
