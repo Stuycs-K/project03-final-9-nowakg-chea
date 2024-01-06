@@ -74,12 +74,36 @@ void sendMessage(char* message, struct player allPlayers[]){
 
 int main() {
   signal(SIGCHLD, sighandler);
+
+
+  //this needs to be done now so that later when the game starts it has the pipe working with the child server
+  int subserverPipe[2];
+  err(pipe(subserverPipe), "pipe fail in beginning of main");
+  int gameState = GAMESTATE_PRE_GAME;
+  pid_t subserver;
+  subserver = fork();
+  err(subserver, "fork fail in beginning");
+  if(subserver == 0){
+    printf("subserver writing, (pid: %d)\n", getpid());
+    while(1){
+      write( subserverPipe[PIPE_WRITE], GAMESTATE_DAY, sizeof(int));
+    }
+
+
+    // close(subserverPipe[PIPE_READ]);
+    // close(subserverPipe[PIPE_WRITE]);
+    exit(0);
+  }
+
+  printf("parent server pid: %d\n", getpid());
+  printf("Waiting on people to join the game... (type /start to start)\n");
   int listen_socket = server_setup();
   char buffer[BUFFER_SIZE];
   struct player* allPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
   struct player* townPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
   struct player* mafiaPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
   struct player* neutralPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
+
   int playerCount = 0;
   int joinPhase = 1;
 
@@ -240,43 +264,21 @@ int main() {
 
   //BEGIN THE GAME
   int win = -1; //will be equal to the team that wins so like T_MAFIA or T_TOWN
-  int subserverPipe[2];
-  err(pipe(subserverPipe), "pipe fail in main loop of game");
-  int gameState = GAMESTATE_PRE_GAME;
-
-  //the fork stuff works but just not with the select function
-  // pid_t subserver;
-  // subserver = fork();
-  // err(subserver, "fork fail in game beginning");
-
-
-  //THIS STOPS SELECT FROM WORKING AND IM VERY CONFUSED AS TO WHY
-  // if(subserver == 0){
-  //   write( subserverPipe[PIPE_WRITE], GAMESTATE_DAY, sizeof(int));
-  //
-  //   printf("subserber writing %d, (pid: %d)\n", GAMESTATE_DAY, getpid());
-  //   // close(subserverPipe[PIPE_READ]);
-  //   // close(subserverPipe[PIPE_WRITE]);
-  //   exit(0);
-  // }
-
 
   while(win < 0){
-    printf("this pid: %d\n", getpid());
-
     FD_ZERO(&read_fds);
     //add listen_socket and stdin to the set
     FD_SET(listen_socket, &read_fds);
     //add the pipe file descriptor
     FD_SET(subserverPipe[PIPE_READ], &read_fds);
-    //add the pipe file descriptor
-    //FD_SET(STDIN_FILENO, &read_fds);
 
     //get the pipe read and listen_socket to both be listened to
-    //THIS DOES NOT WORK WHEN THE COMMENTED CODE ABOVE IS UNCOMMENTED
     int i = select(listen_socket+1, &read_fds, NULL, NULL, NULL);
     err(i, "server select/socket error in main game loop");
 
+    if(gameState == GAMESTATE_DAY){
+      sendMessage("\n\nGAME: It is now daytime! Talk amongst the townfolk.\n\n", allPlayers);
+    }
 
     if(FD_ISSET(listen_socket, &read_fds)){
       if(gameState == GAMESTATE_DAY){
@@ -288,10 +290,6 @@ int main() {
     if(FD_ISSET(subserverPipe[PIPE_READ], &read_fds)){
       gameState = subserverPipe[PIPE_READ];
       printf("gameState is now: %d\n", gameState);
-    }
-
-    if(gameState == GAMESTATE_DAY){
-      sendMessage("\n\nGAME: It is now daytime! Talk amongst the townfolk.\n\n", allPlayers);
     }
   }
 

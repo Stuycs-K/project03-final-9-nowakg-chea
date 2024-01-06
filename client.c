@@ -40,14 +40,31 @@ int main(int argc, char *argv[] ) {
   write(server_socket, buffer, BUFFER_SIZE);
   printf("Please wait for the server to start the game...\n");
 
-
-  //for now, just have the client read from the server
-  while(1){
-    //read will be 0 bytes when the server doesn't send a message
-    if(read(server_socket, buffer, BUFFER_SIZE) > 0){
-      printf("%s\n", buffer);
-    }
-  }
+  // //client has to listen to stdin and the server
+  // fd_set read_fds;
+  //
+  // while(1){
+  //   FD_ZERO(&read_fds);
+  //   //add listen_socket and stdin to the set
+  //   FD_SET(server_socket, &read_fds);
+  //   //add the pipe file descriptor
+  //   FD_SET(STDIN_FILENO, &read_fds);
+  //
+  //   //get the STDIN and listen_socket to both be listened to
+  //   //THIS IS BROKEN !!!
+  //   int i = select(server_socket+1, &read_fds, NULL, NULL, NULL);
+  //   err(i, "server select/socket error");
+  //
+  //   if(FD_ISSET(STDIN_FILENO, &read_fds)){
+  //     fgets(buffer, sizeof(buffer), stdin);
+  //     write(server_socket, buffer, BUFFER_SIZE);
+  //   }
+  //
+  //   if(FD_ISSET(server_socket, &read_fds)){
+  //     read(server_socket, buffer, BUFFER_SIZE);
+  //     printf("%s", buffer);
+  //   }
+  // }
 
   return 0;
 }
