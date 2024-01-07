@@ -36,35 +36,41 @@ int main(int argc, char *argv[] ) {
   }
   int server_socket = client_tcp_handshake(IP);
 
-  query("Enter a name:", buffer, BUFFER_SIZE);
-  write(server_socket, buffer, BUFFER_SIZE);
   printf("Please wait for the server to start the game...\n");
 
-  // //client has to listen to stdin and the server
-  // fd_set read_fds;
-  //
-  // while(1){
-  //   FD_ZERO(&read_fds);
-  //   //add listen_socket and stdin to the set
-  //   FD_SET(server_socket, &read_fds);
-  //   //add the pipe file descriptor
-  //   FD_SET(STDIN_FILENO, &read_fds);
-  //
-  //   //get the STDIN and listen_socket to both be listened to
-  //   //THIS IS BROKEN !!!
-  //   int i = select(server_socket+1, &read_fds, NULL, NULL, NULL);
-  //   err(i, "server select/socket error");
-  //
-  //   if(FD_ISSET(STDIN_FILENO, &read_fds)){
-  //     fgets(buffer, sizeof(buffer), stdin);
-  //     write(server_socket, buffer, BUFFER_SIZE);
-  //   }
-  //
-  //   if(FD_ISSET(server_socket, &read_fds)){
-  //     read(server_socket, buffer, BUFFER_SIZE);
-  //     printf("%s", buffer);
-  //   }
-  // }
+  // query("Enter a name:", buffer, BUFFER_SIZE);
+  // write(server_socket, buffer, BUFFER_SIZE);
+
+  //client has to listen to stdin and the server
+  fd_set read_fds;
+
+  while(1){
+    FD_ZERO(&read_fds);
+    //add listen_socket and stdin to the set
+    FD_SET(server_socket, &read_fds);
+    //add the pipe file descriptor
+    FD_SET(STDIN_FILENO, &read_fds);
+
+    //get the STDIN and listen_socket to both be listened to
+    int i = select(server_socket+1, &read_fds, NULL, NULL, NULL);
+
+    //this is dumb but you need to check i before putting it in err or it will
+    //run even if the ernno is 0
+    if(i < 0) err(i, "server select/socket error CLIENT");
+
+    if(FD_ISSET(server_socket, &read_fds)){
+      read(server_socket, buffer, BUFFER_SIZE);
+      printf("server: %s\n", buffer);
+    }
+    if(FD_ISSET(STDIN_FILENO, &read_fds)){
+      fgets(buffer, sizeof(buffer), stdin);
+      buffer[strlen(buffer) - 1] = 0;
+      //get rid of newline
+      printf("stdin: %s\n", buffer);
+      write(server_socket, buffer, BUFFER_SIZE);
+    }
+
+  }
 
   return 0;
 }

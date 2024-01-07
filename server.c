@@ -1,4 +1,5 @@
 #include "server.h"
+#include "player.h"
 #include "role.h"
 
 void err(int i, char*message){
@@ -77,6 +78,7 @@ int main() {
 
 
   //this needs to be done now so that later when the game starts it has the pipe working with the child server
+  //subserver stuff
   int subserverPipe[2];
   err(pipe(subserverPipe), "pipe fail in beginning of main");
   int gameState = GAMESTATE_PRE_GAME;
@@ -88,16 +90,19 @@ int main() {
     while(1){
       write( subserverPipe[PIPE_WRITE], GAMESTATE_DAY, sizeof(int));
     }
-
-
     // close(subserverPipe[PIPE_READ]);
     // close(subserverPipe[PIPE_WRITE]);
     exit(0);
   }
 
+
+
+  //parent server
   printf("parent server pid: %d\n", getpid());
-  printf("Waiting on people to join the game... (type /start to start)\n");
+  printf("\nWaiting on people to join the game... (type /start to start)\n\n");
+
   int listen_socket = server_setup();
+
   char buffer[BUFFER_SIZE];
   struct player* allPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
   struct player* townPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
@@ -142,12 +147,13 @@ int main() {
     }
 
     if(FD_ISSET(listen_socket, &read_fds)){
-      //temp is the joining player
-      int temp = server_tcp_handshake(listen_socket);
-      read(temp, buffer, BUFFER_SIZE);
       struct player newPlayer;
+      newPlayer.sockd = server_tcp_handshake(listen_socket);
+
+      write(newPlayer.sockd, "Enter a name:", BUFFER_SIZE);
+
+      read(newPlayer.sockd, buffer, BUFFER_SIZE);
       strcpy(newPlayer.name, buffer);
-      newPlayer.sockd = temp;
       newPlayer.alive = 1;
       allPlayers[playerCount] = newPlayer;
       ++playerCount;
@@ -156,6 +162,7 @@ int main() {
     }
     if(playerCount == MAX_PLAYERS) joinPhase = 0;
   }
+
 
   printf("Players connected: \n");
   for(int i = 0; i < playerCount; ++i) {
@@ -170,6 +177,8 @@ int main() {
 
   //ROLE DISTRIBUTION
   //figuring out how many of each (will go 610, 710, 720, 721, 821, 831, 832, 932, 942)
+
+  printf("\nDISTRIBUTING ROLES!\n\n");
   int townCount = 6;
   int mafiaCount = 1;
   int neutralCount = 0;
@@ -259,33 +268,41 @@ int main() {
 
 
 
-
-
-
   //BEGIN THE GAME
+
+  printf("\n\nBEGINNING GAME!\n");
   int win = -1; //will be equal to the team that wins so like T_MAFIA or T_TOWN
 
   while(win < 0){
     FD_ZERO(&read_fds);
-    //add listen_socket and stdin to the set
-    FD_SET(listen_socket, &read_fds);
+    //add the sockd descriptor OF EVERY PLAYER and stdin to the set
+
+    for(int n = 0; n < playerCount; n++){
+      printf("FD_SETing %s\n", allPlayers[n].name);
+      FD_SET(allPlayers[n].sockd, &read_fds);
+    }
+
     //add the pipe file descriptor
-    FD_SET(subserverPipe[PIPE_READ], &read_fds);
+    //FD_SET(subserverPipe[PIPE_READ], &read_fds);
 
     //get the pipe read and listen_socket to both be listened to
+
+    //THIS IS BLOCKING THE REST OF SERVER
     int i = select(listen_socket+1, &read_fds, NULL, NULL, NULL);
     err(i, "server select/socket error in main game loop");
+
 
     if(gameState == GAMESTATE_DAY){
       sendMessage("\n\nGAME: It is now daytime! Talk amongst the townfolk.\n\n", allPlayers);
     }
 
-    if(FD_ISSET(listen_socket, &read_fds)){
-      if(gameState == GAMESTATE_DAY){
+    for (int n = 0; n < playerCount; n++){
+      if(FD_ISSET(allPlayers[n].sockd, &read_fds)){
         read(listen_socket, buffer, BUFFER_SIZE);
         sendMessage(buffer, allPlayers);
       }
     }
+
 
     if(FD_ISSET(subserverPipe[PIPE_READ], &read_fds)){
       gameState = subserverPipe[PIPE_READ];

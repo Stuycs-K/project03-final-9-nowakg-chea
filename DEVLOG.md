@@ -15,8 +15,14 @@ worked on player structs work on role struct beginning to work on server and cli
 
 ### 2024-01-05 THROUGH 2024-01-07 - Brief description
 worked on having the server send messages to players (chat feature)
+
 trying to make a FD_ISSET to a pipe read file descriptor so that a subserver can use a timer
 and tell the parent server when day/night/voting time cycles are over  
+
+made client read and write and server read and write at the same time during the game
+but for some reason the select in server blocks server i have to investigate
+the FD_ISSET to a pipe read compiles and the forking server doesnt crash the game so thats good
+but i can't test if it works until server goes past the select stage
 
 ### 2024-01-08 - Brief description
 Expanded description including how much time was spent on task.

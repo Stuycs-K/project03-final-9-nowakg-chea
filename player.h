@@ -1,12 +1,10 @@
-#include "server.h"
-#include "role.h"
-
 #ifdef PLAYER_H
 #define PLAYER_H
 
-#define MAX_PLAYERS 10
-#define ALIVE 1
-#define DEAD 0
+#define MAX_PLAYERS 15
+#define PLAYER_ALIVE 1
+#define PLAYER_DEAD 0
+
 
 
 struct playerMessage{
@@ -22,7 +20,6 @@ struct player{
 };
 
 
-//struct playerGroup[MAX_PLAYERS] will be the "chats" and will be handled and routed by server
 
 void sendMessage(struct playerMessage data);
 
