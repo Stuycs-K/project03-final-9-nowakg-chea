@@ -283,9 +283,8 @@ int main() {
     }
 
     //add the pipe file descriptor
-    //FD_SET(subserverPipe[PIPE_READ], &read_fds);
+    FD_SET(subserverPipe[PIPE_READ], &read_fds);
 
-    //get the pipe read and listen_socket to both be listened to
 
     //THIS IS BLOCKING THE REST OF SERVER
     int i = select(listen_socket+1, &read_fds, NULL, NULL, NULL);
