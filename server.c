@@ -267,7 +267,12 @@ int main() {
       } else {
         if(mafiaPlayers[R_GODFATHER].sockd == 0) role = R_GODFATHER;
         else if(mafiaPlayers[R_MAFIOSO].sockd == 0) role = R_MAFIOSO;
-        else role = (role %= 2) ? R_BLACKMAILER : R_CONSIGLIERE; //randomly chooses between the two
+        else if(role % 2 = 0){
+          role = R_BLACKMAILER 
+        }  //randomly chooses between the two
+        else {
+          role = R_CONSIGLIERE;
+        }
       }
       --mafiaCount;
     }
@@ -305,15 +310,53 @@ int main() {
 
   //BEGIN THE GAME
 
+  int nextPhase = 0;
   int phase = GAMESTATE_DAY;
+
+  int votingTries = 3;
+  struct player *votedPlayer;
+
+  int win = -1, nextPhase = 0; //win will be equal to the team that wins so like T_MAFIA or T_TOWN
+
   printf("\n\nBEGINNING GAME!\n\n");
-  int win = -1, nextPhase = 0; //will be equal to the team that wins so like T_MAFIA or T_TOWN
 
   while(win < 0){
     printf("new phase: %d\n", phase);
+    //timer
     write(mainToTimer[PIPE_WRITE], &phase, sizeof(int));
+
     FD_ZERO(&read_fds);
     //add the sockd descriptor OF EVERY PLAYER and stdin to the set
+
+    //voting and other server messages to tell players what is going on in the phase of the game
+    switch(phase) {
+              case GAMESTATE_DAY: 
+              sendMessage("Weclome to the Town of C-lem. If you are on the town team, you must vote to kill all the mafia members.  If you are the mafia you must kill all the town. 
+              If you are a neutral player you can win with either town or mafia but you have some other way to win. Have fun!", allPlayers, -1);
+                break;
+              case GAMESTATE_DISCUSSION:
+                votingTries = 3;
+                sendMessage("Discussion time!", allPlayers, -1);
+                break;
+              case GAMESTATE_VOTING:
+                sendMessage("It is time to vote! You have %d tries left to vote to kill a player. Use /vote player_name to vote to put a player on trial.", allPlayers, -1);
+                break;
+              case GAMESTATE_DEFENSE: 
+                // char message[BUFFER_SIZE];
+                // strcpy(votedPlayername into mesasge)
+                // sendMessage("%s is on trial. They will now state their case as to why they are not guilty!", allPlayers, -1);
+                // break;
+              case GAMESTATE_JUDGEMENT:
+              
+                break;
+              case GAMESTATE_LASTWORDS:
+              
+                break;
+              case GAMESTATE_NIGHT: 
+              
+                break;
+            }
+
     while(!nextPhase) {
       //add the pipe file descriptor
       FD_SET(timerToMain[PIPE_READ], &read_fds);
@@ -339,18 +382,21 @@ int main() {
       }
 
       for(int n = 0; n < playerCount; n++){
-        if(FD_ISSET(allPlayers[n].sockd, &read_fds)){
+        if(FD_ISSET(allPlayers[n].sockd, &read_fds) && phase != GAMESTATE_DEFENSE && phase != GAMESTATE_LASTWORDS){
           read(allPlayers[n].sockd, buffer, BUFFER_SIZE);
           printf("%s\n", buffer);
           sendMessage(buffer, allPlayers, allPlayers[n].sockd);
         }
+        
       }
 
-
     }
-    ++phase;
-    if(phase == GAMESTATE_NIGHT + 1) phase = GAMESTATE_DISCUSSION;
+
+    
     nextPhase = 0;
+    phase++; 
+    if(phase == GAMESTATE_NIGHT + 1) phase = GAMESTATE_DISCUSSION;
+    phase = 0;
   }
 
 
