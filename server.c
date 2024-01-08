@@ -108,6 +108,24 @@ void timerSubserver(int toServer, int fromServer) {
   }
 }
 
+
+
+//if there is a /vote or a /role then return 1 and get rid of the /vote in the string
+int parsePlayerCommand(char *command){
+  char delib[] = "/vote ";
+  char delib2[] = "/role ";
+  if( (strncmp(command, delib, strlen(delib)) != 0) || (strncmp(command, delib2, strlen(delib2)) != 0)){
+    return 0;
+  }
+
+  //strlen delib and delib 2 are the same conviently enough
+  for(int n = 0; n < strlen(delib); n++){
+    command++;
+  }
+  //now command should point to the thing after /vote
+  return 1;
+}
+
 int main() {
   signal(SIGCHLD, sighandler);
 
@@ -267,8 +285,8 @@ int main() {
       } else {
         if(mafiaPlayers[R_GODFATHER].sockd == 0) role = R_GODFATHER;
         else if(mafiaPlayers[R_MAFIOSO].sockd == 0) role = R_MAFIOSO;
-        else if(role % 2 = 0){
-          role = R_BLACKMAILER 
+        else if(role % 2 == 0){
+          role = R_BLACKMAILER;
         }  //randomly chooses between the two
         else {
           role = R_CONSIGLIERE;
@@ -314,9 +332,9 @@ int main() {
   int phase = GAMESTATE_DAY;
 
   int votingTries = 3;
-  struct player *votedPlayer;
+  struct player *votedPlayer = NULL;
 
-  int win = -1, nextPhase = 0; //win will be equal to the team that wins so like T_MAFIA or T_TOWN
+  int win = -1; //win will be equal to the team that wins so like T_MAFIA or T_TOWN
 
   printf("\n\nBEGINNING GAME!\n\n");
 
@@ -330,9 +348,8 @@ int main() {
 
     //voting and other server messages to tell players what is going on in the phase of the game
     switch(phase) {
-              case GAMESTATE_DAY: 
-              sendMessage("Weclome to the Town of C-lem. If you are on the town team, you must vote to kill all the mafia members.  If you are the mafia you must kill all the town. 
-              If you are a neutral player you can win with either town or mafia but you have some other way to win. Have fun!", allPlayers, -1);
+              case GAMESTATE_DAY:
+                sendMessage("Weclome to the Town of C-lem. If you are on the town team, you must vote to kill all the mafia members.  If you are the mafia you must kill all the town. If you are a neutral player you can win with either town or mafia but you have some other way to win. Have fun!", allPlayers, -1);
                 break;
               case GAMESTATE_DISCUSSION:
                 votingTries = 3;
@@ -341,19 +358,25 @@ int main() {
               case GAMESTATE_VOTING:
                 sendMessage("It is time to vote! You have %d tries left to vote to kill a player. Use /vote player_name to vote to put a player on trial.", allPlayers, -1);
                 break;
-              case GAMESTATE_DEFENSE: 
-                // char message[BUFFER_SIZE];
-                // strcpy(votedPlayername into mesasge)
-                // sendMessage("%s is on trial. They will now state their case as to why they are not guilty!", allPlayers, -1);
-                // break;
+              case GAMESTATE_DEFENSE:
+                strcpy(buffer, votedPlayer->name);
+                strcat(" is on trial. They will now state their case as to why they are not guilty!", buffer);
+                sendMessage(buffer, allPlayers, -1);
+                break;
               case GAMESTATE_JUDGEMENT:
-              
+                strcpy(buffer, votedPlayer->name);
+                strcat(" is on trial. Use /vote abstain, /vote guilty, and /vote innocent to vote whether they should be killed!", buffer);
+                sendMessage(buffer, allPlayers, -1);
                 break;
               case GAMESTATE_LASTWORDS:
-              
+                strcpy(buffer, votedPlayer->name);
+                strcat(" will now their last words.", buffer);
+                sendMessage(buffer, allPlayers, -1);
                 break;
-              case GAMESTATE_NIGHT: 
-              
+              case GAMESTATE_NIGHT:
+                sendMessage("Talk to other mafia players and conspire to eliminate the town! Use /role target to do your role's action. If you have a role that requires you to target yourself do /role your-name.", mafiaPlayers, -1);
+                sendMessage("Good luck! Use /role target to do your role's action. If you have a role that requires you to target yourself do /role your-name.", townPlayers, -1);
+                sendMessage("Good luck! Use /role target to do your role's action. If you have a role that requires you to target yourself do /role your-name.", neutralPlayers, -1);
                 break;
             }
 
@@ -385,16 +408,25 @@ int main() {
         if(FD_ISSET(allPlayers[n].sockd, &read_fds) && phase != GAMESTATE_DEFENSE && phase != GAMESTATE_LASTWORDS){
           read(allPlayers[n].sockd, buffer, BUFFER_SIZE);
           printf("%s\n", buffer);
-          sendMessage(buffer, allPlayers, allPlayers[n].sockd);
+
+          //if there is a command like /vote playername or /role target
+          if(parsePlayerCommand(buffer)){
+            //buffer is now the target.
+
+          }
+          else{
+            sendMessage(buffer, allPlayers, allPlayers[n].sockd);
+          }
+
         }
-        
+
       }
 
     }
 
-    
+
     nextPhase = 0;
-    phase++; 
+    phase++;
     if(phase == GAMESTATE_NIGHT + 1) phase = GAMESTATE_DISCUSSION;
     phase = 0;
   }

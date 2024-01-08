@@ -26,7 +26,8 @@ but i can't test if it works until server goes past the select stage
 
 ### 2024-01-08 - Brief description
 Made the chat UI work so that players that send messages wouldn't get their same msg back from the server
-and all sent messages go to all players 
+and all sent messages go to all players
+worked on voting system and game phases and command parsing when players do /role or /vote
 
 
 ### 2024-01-09 - Brief description
