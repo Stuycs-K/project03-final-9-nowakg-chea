@@ -72,6 +72,25 @@ void sendMessage(char* message, struct player allPlayers[]){
   }
 }
 
+void timerSubserver(int toServer, int fromServer) {
+  int phase = 0, time = 0, done = 0;
+  while(!done) {
+    read(fromServer, &phase, sizeof(int));
+    switch(phase) {
+      case GAMESTATE_DAY: time = 15; break;
+      case GAMESTATE_DISCUSSION: time = 45; break;
+      case GAMESTATE_VOTING: time = 30; break;
+      case GAMESTATE_DEFENSE: time = 20; break;
+      case GAMESTATE_JUDGEMENT: time = 20; break;
+      case GAMESTATE_LASTWORDS: time = 7; break;
+      case GAMESTATE_NIGHT: time = 37; break;
+    }
+    while(time--) {
+      sleep(1);
+      write(toServer, &time, sizeof(int));
+    }
+  }
+}
 
 int main() {
   signal(SIGCHLD, sighandler);
@@ -79,22 +98,21 @@ int main() {
 
   //this needs to be done now so that later when the game starts it has the pipe working with the child server
   //subserver stuff
-  int subserverPipe[2];
-  err(pipe(subserverPipe), "pipe fail in beginning of main");
-  int gameState = GAMESTATE_PRE_GAME;
+  int timerToMain[2];
+  int mainToTimer[2];
+  err(pipe(timerToMain), "pipe fail in beginning of main");
+  err(pipe(mainToTimer), "pipe fail in beginning of main");
   pid_t subserver;
   subserver = fork();
   err(subserver, "fork fail in beginning");
   if(subserver == 0){
-    printf("subserver writing, (pid: %d)\n", getpid());
-    while(1){
-      write( subserverPipe[PIPE_WRITE], GAMESTATE_DAY, sizeof(int));
-    }
-    // close(subserverPipe[PIPE_READ]);
-    // close(subserverPipe[PIPE_WRITE]);
-    exit(0);
+    close(timerToMain[PIPE_READ]);
+    close(mainToTimer[PIPE_WRITE]);
+    timerSubserver(timerToMain[PIPE_WRITE], mainToTimer[PIPE_READ]);
+    return 0;
   }
-
+  close(timerToMain[PIPE_WRITE]);
+  close(mainToTimer[PIPE_READ]);
 
 
   //parent server
@@ -150,7 +168,7 @@ int main() {
       struct player newPlayer;
       newPlayer.sockd = server_tcp_handshake(listen_socket);
 
-      write(newPlayer.sockd, "Enter a name:", BUFFER_SIZE);
+      write(newPlayer.sockd, "Enter a name:", 14);
 
       read(newPlayer.sockd, buffer, BUFFER_SIZE);
       strcpy(newPlayer.name, buffer);
@@ -270,43 +288,45 @@ int main() {
 
   //BEGIN THE GAME
 
+  int phase = GAMESTATE_DAY;
   printf("\n\nBEGINNING GAME!\n");
-  int win = -1; //will be equal to the team that wins so like T_MAFIA or T_TOWN
+  int win = -1, nextPhase = 0; //will be equal to the team that wins so like T_MAFIA or T_TOWN
 
   while(win < 0){
+    printf("new phase: %d\n", phase);
+    write(mainToTimer[PIPE_WRITE], &phase, sizeof(int));
     FD_ZERO(&read_fds);
     //add the sockd descriptor OF EVERY PLAYER and stdin to the set
+    while(!nextPhase) {
+      //add the pipe file descriptor
+      FD_SET(timerToMain[PIPE_READ], &read_fds);
 
-    for(int n = 0; n < playerCount; n++){
-      printf("FD_SETing %s\n", allPlayers[n].name);
-      FD_SET(allPlayers[n].sockd, &read_fds);
-    }
-
-    //add the pipe file descriptor
-    FD_SET(subserverPipe[PIPE_READ], &read_fds);
-
-
-    //THIS IS BLOCKING THE REST OF SERVER
-    int i = select(listen_socket+1, &read_fds, NULL, NULL, NULL);
-    err(i, "server select/socket error in main game loop");
-
-
-    if(gameState == GAMESTATE_DAY){
-      sendMessage("\n\nGAME: It is now daytime! Talk amongst the townfolk.\n\n", allPlayers);
-    }
-
-    for (int n = 0; n < playerCount; n++){
-      if(FD_ISSET(allPlayers[n].sockd, &read_fds)){
-        read(listen_socket, buffer, BUFFER_SIZE);
-        sendMessage(buffer, allPlayers);
+      for(int n = 0; n < playerCount; n++){
+        //printf("FD_SETing %s\n", allPlayers[n].name);
+        FD_SET(allPlayers[n].sockd, &read_fds);
       }
-    }
+
+      //THIS IS BLOCKING THE REST OF SERVER
+      int i = select(allPlayers[playerCount-1].sockd, &read_fds, NULL, NULL, NULL);
+      err(i, "server select/socket error in main game loop");
 
 
-    if(FD_ISSET(subserverPipe[PIPE_READ], &read_fds)){
-      gameState = subserverPipe[PIPE_READ];
-      printf("gameState is now: %d\n", gameState);
+      if(FD_ISSET(timerToMain[PIPE_READ], &read_fds)){
+        int time;
+        read(timerToMain[PIPE_READ], &time, sizeof(int));
+        if(time == 0) {
+          nextPhase = 1;
+          continue;
+        }
+        printf("%ds left in current phase\n", time);
+        continue;
+      }
+      
+
     }
+    ++phase;
+    if(phase == GAMESTATE_NIGHT + 1) phase = GAMESTATE_DISCUSSION;
+    nextPhase = 0;
   }
 
 
