@@ -59,7 +59,8 @@ int main(int argc, char *argv[] ) {
     if(i < 0) err(i, "server select/socket error CLIENT");
 
     if(FD_ISSET(server_socket, &read_fds)){
-      read(server_socket, buffer, BUFFER_SIZE);
+      int j = read(server_socket, buffer, BUFFER_SIZE);
+      if(j == 0) return 0;
       printf("server: %s\n", buffer);
     }
     if(FD_ISSET(STDIN_FILENO, &read_fds)){
