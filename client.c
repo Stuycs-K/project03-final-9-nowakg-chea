@@ -61,13 +61,14 @@ int main(int argc, char *argv[] ) {
     if(FD_ISSET(server_socket, &read_fds)){
       int j = read(server_socket, buffer, BUFFER_SIZE);
       if(j == 0) return 0;
-      printf("server: %s\n", buffer);
+      printf("%s\n", buffer);
     }
+
     if(FD_ISSET(STDIN_FILENO, &read_fds)){
       fgets(buffer, sizeof(buffer), stdin);
       buffer[strlen(buffer) - 1] = 0;
       //get rid of newline
-      printf("stdin: %s\n", buffer);
+      //printf("stdin: %s\n", buffer);
       write(server_socket, buffer, BUFFER_SIZE);
     }
 

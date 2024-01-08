@@ -25,7 +25,9 @@ the FD_ISSET to a pipe read compiles and the forking server doesnt crash the gam
 but i can't test if it works until server goes past the select stage
 
 ### 2024-01-08 - Brief description
-Expanded description including how much time was spent on task.
+Made the chat UI work so that players that send messages wouldn't get their same msg back from the server
+and all sent messages go to all players 
+
 
 ### 2024-01-09 - Brief description
 Expanded description including how much time was spent on task.

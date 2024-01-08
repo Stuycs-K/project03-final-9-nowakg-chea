@@ -66,9 +66,25 @@ int server_setup() {
 }
 
 // send a string to a list of players
-void sendMessage(char* message, struct player allPlayers[]){
+//if exclude is -1, then the server sends the message
+//else, it takes a sockd and it will make sure that player sees themself a "you"
+void sendMessage(char* message, struct player allPlayers[], int exclude){
+  char toClient[BUFFER_SIZE] = "";
   for (int n = 0; allPlayers[n].sockd != 0; n++){
-    write(allPlayers[n].sockd, message, BUFFER_SIZE);
+    if(allPlayers[n].sockd == exclude){
+      continue;
+    }
+    else if(exclude == -1){
+      strcpy(toClient, "Server");
+    }
+    else{
+      strcpy(toClient, allPlayers[n].name);
+    }
+
+    strcat(toClient, ": ");
+    strcat(toClient, message);
+
+    write(allPlayers[n].sockd, toClient, BUFFER_SIZE);
   }
 }
 
@@ -186,7 +202,7 @@ int main() {
   for(int i = 0; i < playerCount; ++i) {
     printf("%s\n", allPlayers[i].name);
   }
-  sendMessage("you have been conneced to the server!", allPlayers);
+  sendMessage("you have been conneced to the server!", allPlayers, -1);
 
 
 
@@ -273,7 +289,7 @@ int main() {
     if(team == T_NEUTRAL) neutralPlayers[role] = allPlayers[i];
   }
 
-  sendMessage("GAME: You're role and team is...", allPlayers);
+  sendMessage("Game: You're role and team is...", allPlayers, -1);
 
   for(int i = 0; i < playerCount; ++i) {
     printf("%s: %s %s\n", allPlayers[i].name, intToTeam(allPlayers[i].team), intToRole(allPlayers[i].role, allPlayers[i].team));
@@ -281,6 +297,7 @@ int main() {
     write(allPlayers[i].sockd, intToTeam(allPlayers[i].team), BUFFER_SIZE);
   }
 
+  sendMessage("Game: Hit enter to start!", allPlayers, -1);
 
 
 
@@ -289,7 +306,7 @@ int main() {
   //BEGIN THE GAME
 
   int phase = GAMESTATE_DAY;
-  printf("\n\nBEGINNING GAME!\n");
+  printf("\n\nBEGINNING GAME!\n\n");
   int win = -1, nextPhase = 0; //will be equal to the team that wins so like T_MAFIA or T_TOWN
 
   while(win < 0){
@@ -306,8 +323,7 @@ int main() {
         FD_SET(allPlayers[n].sockd, &read_fds);
       }
 
-      //THIS IS BLOCKING THE REST OF SERVER
-      int i = select(allPlayers[playerCount-1].sockd, &read_fds, NULL, NULL, NULL);
+      int i = select(allPlayers[playerCount-1].sockd + 1, &read_fds, NULL, NULL, NULL);
       err(i, "server select/socket error in main game loop");
 
 
@@ -318,10 +334,18 @@ int main() {
           nextPhase = 1;
           continue;
         }
-        printf("%ds left in current phase\n", time);
+        if(time == 120 || time == 60 || time == 30 || time == 15 || time == 10 || time == 5 || time == 4 || time == 3 || time == 2|| time == 1) printf("%ds left\n", time);
         continue;
       }
-      
+
+      for(int n = 0; n < playerCount; n++){
+        if(FD_ISSET(allPlayers[n].sockd, &read_fds)){
+          read(allPlayers[n].sockd, buffer, BUFFER_SIZE);
+          printf("%s\n", buffer);
+          sendMessage(buffer, allPlayers, allPlayers[n].sockd);
+        }
+      }
+
 
     }
     ++phase;
