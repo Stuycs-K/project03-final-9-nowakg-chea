@@ -48,22 +48,23 @@ Expanded description including how much time was spent on task.
 
 ## Andrew
 
-### 2024-01-02 - Brief description
+### 2024-01-02 - Preparation
 Researched Town of Salem roles, worked on readme
 
-### 2024-01-03 - Brief description
+### 2024-01-03 - File organizing, terminal I/O functions
 Reorganized file structure and deleted networking.c/.h, added input.c for special printing functions
 
-### 2024-01-04 - Brief description
+### 2024-01-04 - Join phase functionality
 Added color printing to input.c and wrote new server and client logic in their mains to handle the join phase logic. I think join phase is good for now, only problem is a you have to start a client and send !start as your username to start the game
 
-### 2024-01-05 THROUGH 2024-01-07 - Brief description
+### 2024-01-05 THROUGH 2024-01-07 - Role assignments, timer subserver with basic game phases
 Wrote a random role assigner. Because it goes in join order and there's a lot more town slots, later joining players are much more likely to be town, so not truly random, but good enough.
 Also added constants for roles and functions to convert those constants to the names for convenience.
 Added game phase constants and a full separate timer subserver process that communicates with the server. Fixed the select looping that Gaven started.
 
-### 2024-01-08 - Brief description
-Expanded description including how much time was spent on task.
+### 2024-01-08 - Chat beautification, basic client disconnect logic
+I made clients locally color their own messages as blue and all server messages are sent colored in green.
+I added checks for clients disconnecting with a message and chat and made the server stop if all players disconnect.
 
 ### 2024-01-09 - Brief description
 Expanded description including how much time was spent on task.
