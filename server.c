@@ -113,16 +113,16 @@ void removePlayer(int sd, struct player* list) {
   list[i].sockd = 0;
 }
 
-//if there is delib in command increment the pointer to go past the delib and return 1 else return 0
-int parsePlayerCommand(char *command, char* delib){
+//if there is delib in command increment the pointer to go past the delib
+char* parsePlayerCommand(char *command, char* delib){
   if( strncmp(command, delib, strlen(delib)) == 0){
     //after this command should point to the char after /vote
     for(int n = 0; n < strlen(delib); n++){
       command++;
     }
-    return 1;
+    printf("%c\n\n", *command);
   }
-  return 0;
+  return command;
 }
 
 int main() {
@@ -154,7 +154,7 @@ int main() {
 
   int listen_socket = server_setup();
 
-  char buffer[BUFFER_SIZE];
+  char* buffer = calloc(sizeof(char), BUFFER_SIZE);
   struct player* allPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
   struct player* townPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
   struct player* mafiaPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
@@ -370,7 +370,8 @@ int main() {
                   abstVotes = 0;
                   innoVotes = 0;
                 }
-                sendMessage("It is time to vote! You have %d tries left to vote to kill a player. Use /vote player_name to vote to put a player on trial.", allPlayers, -1);
+                sprintf(buffer,"It is time to vote! You have %d tries left to vote to kill a player. Use /vote player_name to vote to put a player on trial.",votingTries);
+                sendMessage(buffer, allPlayers, -1);
                 break;
               case GAMESTATE_VOTE_COUNTING:
               //WILL NEED TO CHANGE TO ALIVE PLAYRES LATER BUT THIS IS FINE FORE NOW
@@ -468,8 +469,10 @@ int main() {
 
           //if there is a command like /vote playername or /role target
           //buffer is now the target or guilty/innocent/abstain
-          if( strncmp(buffer, "/vote ", strlen("/vote ")) == 0) {
-            parsePlayerCommand(buffer, "/vote ");
+          char delibVote[] = "/vote ";
+          char delibRole[] = "/role ";
+          if( strncmp(buffer, delibVote, strlen(delibVote)) == 0) {
+            buffer = parsePlayerCommand(buffer, delibVote);
 
             if(phase == GAMESTATE_VOTING){
               //find the player struct based on their name that a player voted for
@@ -499,15 +502,17 @@ int main() {
                 strcpy(vote, "abstain");
               }
               if( strlen(vote) > 1 ){
-                sprintf(buffer, "[%d] %s has voted %s", n, allPlayers[n].name, vote);
+                sprintf(buffer, "[%d] %s ", n, allPlayers[n].name);
+                strcat(buffer, "has voted ");
+                strcat(buffer, vote);
                 sendMessage(buffer, allPlayers, -1);
               }
 
             }
 
           }
-          if( strncmp(buffer, "/role ", strlen("/role ")) == 0) {
-            parsePlayerCommand(buffer, "/role ");
+          if( strncmp(buffer, delibRole, strlen(delibRole)) == 0) {
+            parsePlayerCommand(buffer, delibRole);
 
             //do role with buffer because buffer is now the name of the player
             //roleAction(name of player target which is buffer)
@@ -530,7 +535,6 @@ int main() {
     nextPhase = 0;
     phase++;
     if(phase == GAMESTATE_NIGHT + 1) phase = GAMESTATE_DISCUSSION;
-    phase = 0;
   }
 
 //PAST HERE SOME GROUP OR TEAM HAS WON OR EVERYONE IS DEAD
@@ -551,6 +555,7 @@ int main() {
   free(alivePlayers);
   free(deadPlayers);
   free(votedPlayers);
+  free(buffer);
 
 
 
