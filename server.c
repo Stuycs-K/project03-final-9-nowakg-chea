@@ -66,24 +66,18 @@ int server_setup() {
 }
 
 // send a string to a list of players
-//if exclude is -1, then the server sends the message
-//else, it takes a sockd and it will make sure that player sees themself a "you"
-void sendMessage(char* message, struct player allPlayers[], int exclude){
-  char toClient[BUFFER_SIZE] = "";
+//if id is -1, then the server sends the message
+//else, it takes sockd of sender
+void sendMessage(char* message, struct player allPlayers[], int id){
+  char toClient[BUFFER_SIZE] = "[";
+  if(id == -1) strcpy(toClient, "server");
+  else {
+    sprintf(toClient + 1, "%d] ", id);
+    strcat(toClient, allPlayers[id].name);
+  }
+  strcat(toClient, ": ");
+  strcat(toClient, message);
   for (int n = 0; allPlayers[n].sockd != 0; n++){
-    if(allPlayers[n].sockd == exclude){
-      continue;
-    }
-    else if(exclude == -1){
-      strcpy(toClient, "Server");
-    }
-    else{
-      strcpy(toClient, allPlayers[n].name);
-    }
-
-    strcat(toClient, ": ");
-    strcat(toClient, message);
-
     write(allPlayers[n].sockd, toClient, BUFFER_SIZE);
   }
 }
@@ -108,7 +102,9 @@ void timerSubserver(int toServer, int fromServer) {
   }
 }
 
+void removePlayer(int sd, struct player* list) {
 
+}
 
 //if there is a /vote or a /role then return 1 and get rid of the /vote in the string
 int parsePlayerCommand(char *command){
@@ -220,7 +216,7 @@ int main() {
   for(int i = 0; i < playerCount; ++i) {
     printf("%s\n", allPlayers[i].name);
   }
-  sendMessage("you have been conneced to the server!", allPlayers, -1);
+  sendMessage("you have been connected to the server!", allPlayers, -1);
 
 
 
@@ -349,7 +345,7 @@ int main() {
     //voting and other server messages to tell players what is going on in the phase of the game
     switch(phase) {
               case GAMESTATE_DAY:
-                sendMessage("Weclome to the Town of C-lem. If you are on the town team, you must vote to kill all the mafia members.  If you are the mafia you must kill all the town. If you are a neutral player you can win with either town or mafia but you have some other way to win. Have fun!", allPlayers, -1);
+                sendMessage("Welcome to the Town of C-lem. If you are on the town team, you must vote to kill all the mafia members.  If you are the mafia you must kill all the town. If you are a neutral player you can win with either town or mafia but you have some other way to win. Have fun!", allPlayers, -1);
                 break;
               case GAMESTATE_DISCUSSION:
                 votingTries = 3;
@@ -406,7 +402,17 @@ int main() {
 
       for(int n = 0; n < playerCount; n++){
         if(FD_ISSET(allPlayers[n].sockd, &read_fds) && phase != GAMESTATE_DEFENSE && phase != GAMESTATE_LASTWORDS){
-          read(allPlayers[n].sockd, buffer, BUFFER_SIZE);
+          int bytes = read(allPlayers[n].sockd, buffer, BUFFER_SIZE);
+          err(bytes, "bad client read in game loop");
+          if(bytes == 0) {
+            int sd = allPlayers[n].sockd;
+            if(allPlayers[n].team == T_TOWN) removePlayer(sd, townPlayers);
+            if(allPlayers[n].team == T_MAFIA) removePlayer(sd, mafiaPlayers);
+            if(allPlayers[n].team == T_NEUTRAL) removePlayer(sd, neutralPlayers);
+            removePlayer(sd, allPlayers);
+            --n;
+            continue;
+          }
           printf("%s\n", buffer);
 
           //if there is a command like /vote playername or /role target
@@ -415,7 +421,7 @@ int main() {
 
           }
           else{
-            sendMessage(buffer, allPlayers, allPlayers[n].sockd);
+            sendMessage(buffer, allPlayers, n);
           }
 
         }
