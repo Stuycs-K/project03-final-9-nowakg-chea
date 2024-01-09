@@ -20,6 +20,11 @@ void moveCursor(int x, int y) {
 void colorText(int color) {
     printf("\033[%dm", color);
 }
+
+void clearLine() {
+    printf("\33[2K\r");
+}
+
 /*
 int main() {
     clearScreen();
