@@ -70,13 +70,14 @@ int server_setup() {
 //else, it takes sockd of sender
 void sendMessage(char* message, struct player allPlayers[], int id){
   char toClient[BUFFER_SIZE] = "[";
-  if(id == -1) strcpy(toClient, "server");
+  if(id == -1) strcpy(toClient, "\033[32mserver");
   else {
     sprintf(toClient + 1, "%d] ", id);
     strcat(toClient, allPlayers[id].name);
   }
   strcat(toClient, ": ");
   strcat(toClient, message);
+  if(id == -1) strcat(toClient, "\033[0m");
   for (int n = 0; allPlayers[n].sockd != 0; n++){
     write(allPlayers[n].sockd, toClient, BUFFER_SIZE);
   }
@@ -103,7 +104,14 @@ void timerSubserver(int toServer, int fromServer) {
 }
 
 void removePlayer(int sd, struct player* list) {
-
+  int i = -1;
+  while(list[++i].sockd != sd)
+    if(i >= MAX_PLAYERS) printf("Missing sd in removePlayer\n");
+  while(i < MAX_PLAYERS - 1 && list[i].sockd > 0) {
+    list[i] = list[i+1];
+    ++i;
+  }
+  list[i].sockd = 0;
 }
 
 //if there is a /vote or a /role then return 1 and get rid of the /vote in the string
@@ -405,11 +413,18 @@ int main() {
           int bytes = read(allPlayers[n].sockd, buffer, BUFFER_SIZE);
           err(bytes, "bad client read in game loop");
           if(bytes == 0) {
+            char name[256];
+            strcpy(name, allPlayers[n].name);
             int sd = allPlayers[n].sockd;
             if(allPlayers[n].team == T_TOWN) removePlayer(sd, townPlayers);
             if(allPlayers[n].team == T_MAFIA) removePlayer(sd, mafiaPlayers);
             if(allPlayers[n].team == T_NEUTRAL) removePlayer(sd, neutralPlayers);
+            //printf("removing from all");
             removePlayer(sd, allPlayers);
+            sprintf(buffer, "[%d] %s disconnected", n, name);
+            sendMessage(buffer, allPlayers, -1);
+            --playerCount;
+            if(playerCount == 0) return 0;
             --n;
             continue;
           }
