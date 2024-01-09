@@ -514,7 +514,7 @@ int main() {
           }
           //SENDING MESSAGES !!!
           else if(phase != GAMESTATE_DEFENSE && phase != GAMESTATE_LASTWORDS){
-            sendMessage(buffer, allPlayers, -1);
+            sendMessage(buffer, allPlayers, n);
 
             //here we have to add sending messages depending on the phase and what role the people are
           }
