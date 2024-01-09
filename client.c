@@ -28,6 +28,7 @@ int client_tcp_handshake(char * server_address) {
 }
 
 int main(int argc, char *argv[] ) {
+  moveCursor(0, 30);
   char buffer[BUFFER_SIZE];
   char* IP = "127.0.0.1";
   if(argc>1){
@@ -62,6 +63,8 @@ int main(int argc, char *argv[] ) {
       int j = read(server_socket, buffer, BUFFER_SIZE);
       if(j == 0) return 0;
       printf("%s\n", buffer);
+      colorText(COLOR_RESET);
+      fflush(stdout);
     }
 
     if(FD_ISSET(STDIN_FILENO, &read_fds)){
@@ -70,6 +73,9 @@ int main(int argc, char *argv[] ) {
       //get rid of newline
       //printf("stdin: %s\n", buffer);
       write(server_socket, buffer, BUFFER_SIZE);
+      moveCursor(0, 29);
+      clearLine();
+      colorText(COLOR_CYAN);
     }
 
   }
