@@ -78,7 +78,7 @@ void sendMessage(char* message, struct player allPlayers[], int id){
   strcat(toClient, message);
   if(id == -1) strcat(toClient, "\033[0m");
   for (int n = 0; allPlayers[n].sockd != 0; n++){
-    write(allPlayers[n].sockd, toClient, BUFFER_SIZE);
+    if(allPlayers[n].sockd > 0) write(allPlayers[n].sockd, toClient, BUFFER_SIZE);
   }
 }
 
@@ -102,15 +102,22 @@ void timerSubserver(int toServer, int fromServer) {
   }
 }
 
-void removePlayer(int sd, struct player* list) {
+//if the destination player list is NULL, it removes the player from the game as if they never joined
+//if shift is true, then the players 
+void movePlayer(int sd, struct player* from, struct player* to) {
   int i = -1;
-  while(list[++i].sockd != sd)
-    if(i >= MAX_PLAYERS) printf("Missing sd in removePlayer\n");
-  while(i < MAX_PLAYERS - 1 && list[i].sockd > 0) {
-    list[i] = list[i+1];
-    ++i;
+  while(from[++i].sockd != sd)
+    if(i >= MAX_PLAYERS) {
+      printf("Missing sd in removePlayer\n");
+      return;
+    }
+  //i is now the location of the target player
+  if(to != NULL) {
+    int j = -1;
+    while(to[++j].sockd <= 0); //moves j to next open slot in array
+    to[j] = from[i];
   }
-  list[i].sockd = 0;
+  from[i].sockd = 0;
 }
 
 //if there is delib in command increment the pointer to go past the delib and return 1 else return 0
@@ -314,8 +321,9 @@ int main() {
     if(team == T_MAFIA) mafiaPlayers[role] = allPlayers[i];
     if(team == T_NEUTRAL) neutralPlayers[role] = allPlayers[i];
   }
+  
 
-  sendMessage("Game: You're role and team is...", allPlayers, -1);
+  sendMessage("Game: Your role and team is...", allPlayers, -1);
 
   for(int i = 0; i < playerCount; ++i) {
     printf("%s: %s %s\n", allPlayers[i].name, intToTeam(allPlayers[i].team), intToRole(allPlayers[i].role, allPlayers[i].team));
@@ -410,7 +418,7 @@ int main() {
                 break;
               case GAMESTATE_LASTWORDS:
                 strcpy(buffer, votedPlayer->name);
-                strcat(" will now their last words.", buffer);
+                strcat(" will now say their last words.", buffer);
                 sendMessage(buffer, allPlayers, -1);
                 break;
               case GAMESTATE_NIGHT:
@@ -426,7 +434,7 @@ int main() {
 
       for(int n = 0; n < playerCount; n++){
         //printf("FD_SETing %s\n", allPlayers[n].name);
-        FD_SET(allPlayers[n].sockd, &read_fds);
+        if(allPlayers[n].sockd > 0) FD_SET(allPlayers[n].sockd, &read_fds);
       }
 
       int i = select(allPlayers[playerCount-1].sockd + 1, &read_fds, NULL, NULL, NULL);
@@ -452,11 +460,11 @@ int main() {
             char name[256];
             strcpy(name, allPlayers[n].name);
             int sd = allPlayers[n].sockd;
-            if(allPlayers[n].team == T_TOWN) removePlayer(sd, townPlayers);
-            if(allPlayers[n].team == T_MAFIA) removePlayer(sd, mafiaPlayers);
-            if(allPlayers[n].team == T_NEUTRAL) removePlayer(sd, neutralPlayers);
+            if(allPlayers[n].team == T_TOWN) movePlayer(sd, townPlayers, NULL);
+            if(allPlayers[n].team == T_MAFIA) movePlayer(sd, mafiaPlayers, NULL);
+            if(allPlayers[n].team == T_NEUTRAL) movePlayer(sd, neutralPlayers, NULL);
             //printf("removing from all");
-            removePlayer(sd, allPlayers);
+            movePlayer(sd, allPlayers, NULL);
             sprintf(buffer, "[%d] %s disconnected", n, name);
             sendMessage(buffer, allPlayers, -1);
             --playerCount;
