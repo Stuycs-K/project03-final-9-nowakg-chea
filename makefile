@@ -7,7 +7,7 @@ server_compile: server.o role.o
 	@gcc -o server server.o role.o
 client_compile: client.o role.o input.o
 	@gcc -o client client.o role.o input.o
-server.o: server.c role.h player.h
+server.o: server.c role.h
 	@gcc -c -Wall server.c
 client.o: client.c server.h
 	@gcc -c -Wall client.c

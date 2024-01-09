@@ -1,5 +1,4 @@
 #include "server.h"
-#include "player.h"
 #include "role.h"
 
 void err(int i, char*message){
@@ -114,20 +113,16 @@ void removePlayer(int sd, struct player* list) {
   list[i].sockd = 0;
 }
 
-//if there is a /vote or a /role then return 1 and get rid of the /vote in the string
-int parsePlayerCommand(char *command){
-  char delib[] = "/vote ";
-  char delib2[] = "/role ";
-  if( (strncmp(command, delib, strlen(delib)) != 0) || (strncmp(command, delib2, strlen(delib2)) != 0)){
-    return 0;
+//if there is delib in command increment the pointer to go past the delib and return 1 else return 0
+int parsePlayerCommand(char *command, char* delib){
+  if( strncmp(command, delib, strlen(delib)) == 0){
+    //after this command should point to the char after /vote
+    for(int n = 0; n < strlen(delib); n++){
+      command++;
+    }
+    return 1;
   }
-
-  //strlen delib and delib 2 are the same conviently enough
-  for(int n = 0; n < strlen(delib); n++){
-    command++;
-  }
-  //now command should point to the thing after /vote
-  return 1;
+  return 0;
 }
 
 int main() {
@@ -164,6 +159,9 @@ int main() {
   struct player* townPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
   struct player* mafiaPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
   struct player* neutralPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
+  struct player* alivePlayers = calloc(sizeof(struct player), MAX_PLAYERS);
+  struct player* deadPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
+  struct player* votedPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
 
   int playerCount = 0;
   int joinPhase = 1;
@@ -211,6 +209,7 @@ int main() {
       read(newPlayer.sockd, buffer, BUFFER_SIZE);
       strcpy(newPlayer.name, buffer);
       newPlayer.alive = 1;
+      newPlayer.votesForTrial = 0;
       allPlayers[playerCount] = newPlayer;
       ++playerCount;
       printf("Player connected: %s\n", newPlayer.name );
@@ -336,7 +335,10 @@ int main() {
   int phase = GAMESTATE_DAY;
 
   int votingTries = 3;
-  struct player *votedPlayer = NULL;
+  struct player* votedPlayersList = votedPlayers;
+  struct player* votedPlayer = NULL;
+  int guiltyVotes = 0, innoVotes = 0, abstVotes = 0; //will be used in the GAMESTATE_JUDGEMENT phase
+
 
   int win = -1; //win will be equal to the team that wins so like T_MAFIA or T_TOWN
 
@@ -360,9 +362,43 @@ int main() {
                 sendMessage("Discussion time!", allPlayers, -1);
                 break;
               case GAMESTATE_VOTING:
+                //WILL NEED TO BE CHANGED TO ALIVE PLAYERS LATER BUT THIS IS JUST FOR TESTING PURPOSES
+                for(int n = 0; n < playerCount; n++){
+                  allPlayers[n].voted = FALSE;
+                  allPlayers[n].votesForTrial = 0;
+                  guiltyVotes = 0;
+                  abstVotes = 0;
+                  innoVotes = 0;
+                }
                 sendMessage("It is time to vote! You have %d tries left to vote to kill a player. Use /vote player_name to vote to put a player on trial.", allPlayers, -1);
                 break;
+              case GAMESTATE_VOTE_COUNTING:
+              //WILL NEED TO CHANGE TO ALIVE PLAYRES LATER BUT THIS IS FINE FORE NOW
+                sendMessage("Counting votes...", allPlayers, -1);
+                int highestVote = 0;
+                for (int n = 0; n < playerCount; n++){
+                  if(allPlayers[n].votesForTrial > highestVote){
+                    highestVote = allPlayers[n].votesForTrial;
+                    votedPlayer = &allPlayers[n];
+                  }
+                }
+
+                if(highestVote <= playerCount / 2){
+                  votedPlayer = NULL;
+                  sendMessage("The town has voted, but there aren't enough votes to put someone on trial. Night approaches!", allPlayers, -1);
+                  nextPhase = 0;
+                  phase = GAMESTATE_NIGHT;
+                }
+                else{
+                  sprintf(buffer, "The town has voted! %s will now be put on trial.", votedPlayer->name);
+                  sendMessage(buffer, allPlayers, -1);
+                  nextPhase = 0;
+                  phase++;
+                }
+
+                break;
               case GAMESTATE_DEFENSE:
+                votingTries--;
                 strcpy(buffer, votedPlayer->name);
                 strcat(" is on trial. They will now state their case as to why they are not guilty!", buffer);
                 sendMessage(buffer, allPlayers, -1);
@@ -409,7 +445,7 @@ int main() {
       }
 
       for(int n = 0; n < playerCount; n++){
-        if(FD_ISSET(allPlayers[n].sockd, &read_fds) && phase != GAMESTATE_DEFENSE && phase != GAMESTATE_LASTWORDS){
+        if(FD_ISSET(allPlayers[n].sockd, &read_fds)){
           int bytes = read(allPlayers[n].sockd, buffer, BUFFER_SIZE);
           err(bytes, "bad client read in game loop");
           if(bytes == 0) {
@@ -431,17 +467,62 @@ int main() {
           printf("%s\n", buffer);
 
           //if there is a command like /vote playername or /role target
-          if(parsePlayerCommand(buffer)){
-            //buffer is now the target.
+          //buffer is now the target or guilty/innocent/abstain
+          if( strncmp(buffer, "/vote ", strlen("/vote ")) == 0) {
+            parsePlayerCommand(buffer, "/vote ");
+
+            if(phase == GAMESTATE_VOTING){
+              //find the player struct based on their name that a player voted for
+              for(int i = 0; i < playerCount; i++){
+                //GOTTA CHANGE TO ALIVE PLAYERS CUZ YOU CANT VOTE A DEAD PLAYER BUT THIS IS FINE FOR NOW
+                if( strcmp(buffer, allPlayers[i].name) == 0 ){
+                  *votedPlayersList = allPlayers[i];
+                  votedPlayersList++;
+                  allPlayers[i].votesForTrial++;
+                  sprintf(buffer, "[%d] %s has voted", n, allPlayers[n].name);
+                }
+              }
+            }
+
+            if(phase == GAMESTATE_JUDGEMENT){
+              char vote[BUFFER_SIZE] = "";
+              if( strcmp(buffer, "guilty") == 0 ){
+                guiltyVotes++;
+                strcpy(vote, "guilty");
+              }
+              if( strcmp(buffer, "innocent") == 0 ){
+                innoVotes++;
+                strcpy(vote, "innocent");
+              }
+              if( strcmp(buffer, "abstain") == 0 ){
+                abstVotes++;
+                strcpy(vote, "abstain");
+              }
+              if( strlen(vote) > 1 ){
+                sprintf(buffer, "[%d] %s has voted %s", n, allPlayers[n].name, vote);
+                sendMessage(buffer, allPlayers, -1);
+              }
+
+            }
 
           }
-          else{
-            sendMessage(buffer, allPlayers, n);
-          }
+          if( strncmp(buffer, "/role ", strlen("/role ")) == 0) {
+            parsePlayerCommand(buffer, "/role ");
 
+            //do role with buffer because buffer is now the name of the player
+            //roleAction(name of player target which is buffer)
+          }
+          //SENDING MESSAGES !!!
+          else if(phase != GAMESTATE_DEFENSE && phase != GAMESTATE_LASTWORDS){
+            sendMessage(buffer, allPlayers, -1);
+
+            //here we have to add sending messages depending on the phase and what role the people are
+          }
         }
-
       }
+
+
+
 
     }
 
@@ -452,7 +533,24 @@ int main() {
     phase = 0;
   }
 
+//PAST HERE SOME GROUP OR TEAM HAS WON OR EVERYONE IS DEAD
 
+
+
+  sendMessage("Somebody won here...", allPlayers, -1);
+
+
+
+
+//OK WIN MESSAGES ARE OVER LETS FREE UP SOME MEMORY
+
+  free(allPlayers);
+  free(townPlayers);
+  free(mafiaPlayers);
+  free(townPlayers);
+  free(alivePlayers);
+  free(deadPlayers);
+  free(votedPlayers);
 
 
 

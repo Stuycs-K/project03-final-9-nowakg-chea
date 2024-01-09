@@ -1,7 +1,6 @@
 #include "server.h"
 #include "input.h"
 #include "role.h"
-#include "player.h"
 
 /*Connect to the server
  *return the to_server socket descriptor

@@ -19,21 +19,28 @@
 
 #define PORT "19230"
 #define BUFFER_SIZE 1024
+
 #define MAX_PLAYERS 15
+#define PLAYER_ALIVE 1
+#define PLAYER_DEAD 0
+
+#define TRUE 1
+#define FALSE 0
 
 #define GAMESTATE_DAY 0
 #define GAMESTATE_DISCUSSION 1
 #define GAMESTATE_VOTING 2
-#define GAMESTATE_DEFENSE 3
-#define GAMESTATE_JUDGEMENT 4
-#define GAMESTATE_LASTWORDS 5
-#define GAMESTATE_NIGHT 6
+#define GAMESTATE_VOTE_COUNTING 3
+#define GAMESTATE_DEFENSE 4
+#define GAMESTATE_JUDGEMENT 5
+#define GAMESTATE_LASTWORDS 6
+#define GAMESTATE_NIGHT 7
 
 #define PIPE_READ 0
 #define PIPE_WRITE 1
 
-struct player {int sockd; char name[16]; int alive; int team; int role;};
 
+struct player {int sockd; char name[16]; int alive; int votesForTrial; int voted; int team; int role;};
 void err(int i, char*message);
 //void serverStart();
 
