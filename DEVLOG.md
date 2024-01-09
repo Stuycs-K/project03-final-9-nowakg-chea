@@ -31,7 +31,9 @@ worked on voting system and game phases and command parsing when players do /rol
 
 
 ### 2024-01-09 - Brief description
-Expanded description including how much time was spent on task.
+worked on voting system
+got rid of player.h because it was redundant with server.h
+STILL NEED TO TEST IT!
 
 ### 2024-01-10 - Brief description
 Expanded description including how much time was spent on task.
