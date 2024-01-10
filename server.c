@@ -82,6 +82,20 @@ void sendMessage(char* message, struct player allPlayers[], int id){
   }
 }
 
+//takes SOCKET DESCRIPTOR of target and ID NUMBER of sender
+void singleMessage(char* message, int targetSD, int senderID, char* senderName) {
+  char toClient[BUFFER_SIZE] = "[";
+  if(senderID == -1) strcpy(toClient, "\033[32mserver");
+  else {
+    sprintf(toClient + 1, "%d] ", senderID);
+    strcat(toClient, senderName);
+  }
+  strcat(toClient, ": ");
+  strcat(toClient, message);
+  if(senderID == -1) strcat(toClient, "\033[0m");
+  write(targetSD, toClient, BUFFER_SIZE);
+}
+
 void timerSubserver(int toServer, int fromServer) {
   int phase = 0, time = 0, done = 0;
   while(!done) {
@@ -100,24 +114,6 @@ void timerSubserver(int toServer, int fromServer) {
       write(toServer, &time, sizeof(int));
     }
   }
-}
-
-//if the destination player list is NULL, it removes the player from the game as if they never joined
-//if shift is true, then the players 
-void movePlayer(int sd, struct player* from, struct player* to) {
-  int i = -1;
-  while(from[++i].sockd != sd)
-    if(i >= MAX_PLAYERS) {
-      printf("Missing sd in removePlayer\n");
-      return;
-    }
-  //i is now the location of the target player
-  if(to != NULL) {
-    int j = -1;
-    while(to[++j].sockd <= 0); //moves j to next open slot in array
-    to[j] = from[i];
-  }
-  from[i].sockd = 0;
 }
 
 //if there is delib in command increment the pointer to go past the delib and return 1 else return 0
@@ -527,11 +523,13 @@ int main() {
 
             //do role with buffer because buffer is now the name of the player
             //roleAction(name of player target which is buffer)
+            int result = roleAction(allPlayers, deadPlayers, n, buffer);
+            if(!result) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
+            sendMessage("you dead", deadPlayers, -1);
           }
           //SENDING MESSAGES !!!
           else if(phase != GAMESTATE_DEFENSE && phase != GAMESTATE_LASTWORDS){
             sendMessage(buffer, allPlayers, n);
-
             //here we have to add sending messages depending on the phase and what role the people are
           }
         }

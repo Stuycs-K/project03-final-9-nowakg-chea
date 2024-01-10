@@ -42,6 +42,7 @@
 
 struct player {int sockd; char name[16]; int alive; int votesForTrial; int voted; int team; int role;};
 void err(int i, char*message);
+void movePlayer(int sd, struct player* from, struct player* to);
 //void serverStart();
 
 #endif
