@@ -70,7 +70,7 @@ I made clients locally color their own messages as blue and all server messages 
 I added checks for clients disconnecting with a message and chat and made the server stop if all players disconnect.
 
 ### 2024-01-09 - Brief description
-Expanded description including how much time was spent on task.
+I expanded the player disconnect checks and had to rewrite a lot to fix a bug where disconnecting would lock all players with higher IDs out of the game.
 
 ### 2024-01-10 - Brief description
 Expanded description including how much time was spent on task.

@@ -77,8 +77,8 @@ void sendMessage(char* message, struct player allPlayers[], int id){
   strcat(toClient, ": ");
   strcat(toClient, message);
   if(id == -1) strcat(toClient, "\033[0m");
-  for (int n = 0; allPlayers[n].sockd != 0; n++){
-    write(allPlayers[n].sockd, toClient, BUFFER_SIZE);
+  for (int n = 0; n < MAX_PLAYERS; n++){
+    if(allPlayers[n].sockd > 0) write(allPlayers[n].sockd, toClient, BUFFER_SIZE);
   }
 }
 
@@ -102,15 +102,22 @@ void timerSubserver(int toServer, int fromServer) {
   }
 }
 
-void removePlayer(int sd, struct player* list) {
+//if the destination player list is NULL, it removes the player from the game as if they never joined
+//if shift is true, then the players 
+void movePlayer(int sd, struct player* from, struct player* to) {
   int i = -1;
-  while(list[++i].sockd != sd)
-    if(i >= MAX_PLAYERS) printf("Missing sd in removePlayer\n");
-  while(i < MAX_PLAYERS - 1 && list[i].sockd > 0) {
-    list[i] = list[i+1];
-    ++i;
+  while(from[++i].sockd != sd)
+    if(i >= MAX_PLAYERS) {
+      printf("Missing sd in removePlayer\n");
+      return;
+    }
+  //i is now the location of the target player
+  if(to != NULL) {
+    int j = -1;
+    while(to[++j].sockd <= 0); //moves j to next open slot in array
+    to[j] = from[i];
   }
-  list[i].sockd = 0;
+  from[i].sockd = 0;
 }
 
 //if there is delib in command increment the pointer to go past the delib
@@ -313,8 +320,9 @@ int main() {
     if(team == T_MAFIA) mafiaPlayers[role] = allPlayers[i];
     if(team == T_NEUTRAL) neutralPlayers[role] = allPlayers[i];
   }
+  
 
-  sendMessage("Game: You're role and team is...", allPlayers, -1);
+  sendMessage("Game: Your role and team is...", allPlayers, -1);
 
   for(int i = 0; i < playerCount; ++i) {
     printf("%s: %s %s\n", allPlayers[i].name, intToTeam(allPlayers[i].team), intToRole(allPlayers[i].role, allPlayers[i].team));
@@ -363,11 +371,13 @@ int main() {
               case GAMESTATE_VOTING:
                 //WILL NEED TO BE CHANGED TO ALIVE PLAYERS LATER BUT THIS IS JUST FOR TESTING PURPOSES
                 for(int n = 0; n < MAX_PLAYERS; n++){
-                  allPlayers[n].voted = FALSE;
-                  allPlayers[n].votesForTrial = 0;
-                  guiltyVotes = 0;
-                  abstVotes = 0;
-                  innoVotes = 0;
+                  if(allPlayers[n].sockd > 0) {
+                    allPlayers[n].voted = FALSE;
+                    allPlayers[n].votesForTrial = 0;
+                    guiltyVotes = 0;
+                    abstVotes = 0;
+                    innoVotes = 0;
+                  }
                 }
                 sprintf(buffer,"It is time to vote! You have %d tries left to vote to kill a player. Use /vote player_name to vote to put a player on trial.",votingTries);
                 sendMessage(buffer, allPlayers, -1);
@@ -409,7 +419,7 @@ int main() {
                 break;
               case GAMESTATE_LASTWORDS:
                 strcpy(buffer, votedPlayer->name);
-                strcat(" will now their last words.", buffer);
+                strcat(" will now say their last words.", buffer);
                 sendMessage(buffer, allPlayers, -1);
                 break;
               case GAMESTATE_NIGHT:
@@ -420,15 +430,21 @@ int main() {
             }
 
     while(!nextPhase) {
+      FD_ZERO(&read_fds);
       //add the pipe file descriptor
       FD_SET(timerToMain[PIPE_READ], &read_fds);
 
-      for(int n = 0; n < playerCount; n++){
+      int maxSD = -1;
+
+      for(int n = 0; n < MAX_PLAYERS; n++){
         //printf("FD_SETing %s\n", allPlayers[n].name);
-        FD_SET(allPlayers[n].sockd, &read_fds);
+        if(allPlayers[n].sockd > 0) {
+          FD_SET(allPlayers[n].sockd, &read_fds);
+          if(allPlayers[n].sockd > maxSD) maxSD = allPlayers[n].sockd;
+        }
       }
 
-      int i = select(allPlayers[playerCount-1].sockd + 1, &read_fds, NULL, NULL, NULL);
+      int i = select(maxSD + 1, &read_fds, NULL, NULL, NULL);
       err(i, "server select/socket error in main game loop");
 
 
@@ -443,24 +459,24 @@ int main() {
         continue;
       }
 
-      for(int n = 0; n < playerCount; n++){
-        if(FD_ISSET(allPlayers[n].sockd, &read_fds)){
+      for(int n = 0; n < MAX_PLAYERS; n++){
+        if(allPlayers[n].sockd > 0 && FD_ISSET(allPlayers[n].sockd, &read_fds)){
           int bytes = read(allPlayers[n].sockd, buffer, BUFFER_SIZE);
           err(bytes, "bad client read in game loop");
           if(bytes == 0) {
             char name[256];
             strcpy(name, allPlayers[n].name);
+            printf("%s disconnected\n", name);
             int sd = allPlayers[n].sockd;
-            if(allPlayers[n].team == T_TOWN) removePlayer(sd, townPlayers);
-            if(allPlayers[n].team == T_MAFIA) removePlayer(sd, mafiaPlayers);
-            if(allPlayers[n].team == T_NEUTRAL) removePlayer(sd, neutralPlayers);
+            if(allPlayers[n].team == T_TOWN) movePlayer(sd, townPlayers, NULL);
+            if(allPlayers[n].team == T_MAFIA) movePlayer(sd, mafiaPlayers, NULL);
+            if(allPlayers[n].team == T_NEUTRAL) movePlayer(sd, neutralPlayers, NULL);
             //printf("removing from all");
-            removePlayer(sd, allPlayers);
+            movePlayer(sd, allPlayers, NULL);
             sprintf(buffer, "[%d] %s disconnected", n, name);
             sendMessage(buffer, allPlayers, -1);
             --playerCount;
             if(playerCount == 0) return 0;
-            --n;
             continue;
           }
           printf("%s\n", buffer);
@@ -474,15 +490,14 @@ int main() {
 
             if(phase == GAMESTATE_VOTING){
               //find the player struct based on their name that a player voted for
-              for(int i = 0; i < playerCount; i++){
+              for(int i = 0; i < MAX_PLAYERS; i++){
                 //GOTTA CHANGE TO ALIVE PLAYERS CUZ YOU CANT VOTE A DEAD PLAYER BUT THIS IS FINE FOR NOW
-                if( strcmp(buffer, allPlayers[i].name) == 0 ){
+                if( allPlayers[i].sockd > 0 && strcmp(buffer, allPlayers[i].name) == 0 ){
                   *votedPlayersList = allPlayers[i];
                   votedPlayersList++;
                   allPlayers[i].votesForTrial++;
                   sprintf(buffer, "[%d] %s has voted", n, allPlayers[n].name);
-                  sendMessage(buffer, allPlayers, -1);
-                }
+                } else if(allPlayers[i].sockd <= 0) write(allPlayers[n].sockd, "Player doesn't exist\n", 22);
               }
             }
 
@@ -524,7 +539,6 @@ int main() {
           }
         }
       }
-
 
 
 
