@@ -87,8 +87,8 @@ void timerSubserver(int toServer, int fromServer) {
   while(!done) {
     read(fromServer, &phase, sizeof(int));
     switch(phase) {
-      case GAMESTATE_DAY: time = 15; break;
-      case GAMESTATE_DISCUSSION: time = 45; break;
+      case GAMESTATE_DAY: time = 3; break; //originally 15
+      case GAMESTATE_DISCUSSION: time = 3; break; //originally 45
       case GAMESTATE_VOTING: time = 30; break;
       case GAMESTATE_DEFENSE: time = 20; break;
       case GAMESTATE_JUDGEMENT: time = 20; break;
@@ -120,7 +120,6 @@ char* parsePlayerCommand(char *command, char* delib){
     for(int n = 0; n < strlen(delib); n++){
       command++;
     }
-    printf("%c\n\n", *command);
   }
   return command;
 }
@@ -363,7 +362,7 @@ int main() {
                 break;
               case GAMESTATE_VOTING:
                 //WILL NEED TO BE CHANGED TO ALIVE PLAYERS LATER BUT THIS IS JUST FOR TESTING PURPOSES
-                for(int n = 0; n < playerCount; n++){
+                for(int n = 0; n < MAX_PLAYERS; n++){
                   allPlayers[n].voted = FALSE;
                   allPlayers[n].votesForTrial = 0;
                   guiltyVotes = 0;
@@ -373,12 +372,12 @@ int main() {
                 sprintf(buffer,"It is time to vote! You have %d tries left to vote to kill a player. Use /vote player_name to vote to put a player on trial.",votingTries);
                 sendMessage(buffer, allPlayers, -1);
                 break;
-              case GAMESTATE_VOTE_COUNTING:
-              //WILL NEED TO CHANGE TO ALIVE PLAYRES LATER BUT THIS IS FINE FORE NOW
+              case GAMESTATE_DEFENSE:
+                 //WILL NEED TO CHANGE TO ALIVE PLAYRES LATER BUT THIS IS FINE FORE NOW
                 sendMessage("Counting votes...", allPlayers, -1);
                 int highestVote = 0;
-                for (int n = 0; n < playerCount; n++){
-                  if(allPlayers[n].votesForTrial > highestVote){
+                for (int n = 0; n < MAX_PLAYERS; n++){
+                  if(allPlayers[n].sockd > 0 && allPlayers[n].votesForTrial > highestVote){
                     highestVote = allPlayers[n].votesForTrial;
                     votedPlayer = &allPlayers[n];
                   }
@@ -397,8 +396,7 @@ int main() {
                   phase++;
                 }
 
-                break;
-              case GAMESTATE_DEFENSE:
+
                 votingTries--;
                 strcpy(buffer, votedPlayer->name);
                 strcat(" is on trial. They will now state their case as to why they are not guilty!", buffer);
@@ -483,6 +481,7 @@ int main() {
                   votedPlayersList++;
                   allPlayers[i].votesForTrial++;
                   sprintf(buffer, "[%d] %s has voted", n, allPlayers[n].name);
+                  sendMessage(buffer, allPlayers, -1);
                 }
               }
             }
@@ -518,7 +517,7 @@ int main() {
             //roleAction(name of player target which is buffer)
           }
           //SENDING MESSAGES !!!
-          else if(phase != GAMESTATE_DEFENSE && phase != GAMESTATE_LASTWORDS){
+          else if(phase != GAMESTATE_DEFENSE && phase != GAMESTATE_LASTWORDS && phase != GAMESTATE_VOTING){
             sendMessage(buffer, allPlayers, n);
 
             //here we have to add sending messages depending on the phase and what role the people are
