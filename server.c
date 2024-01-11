@@ -358,9 +358,9 @@ int main() {
 
   int nextPhase = 0;
   int phase = GAMESTATE_DAY;
+  struct player* votedPlayersList = votedPlayers;
 
   int votingTries = 3;
-  struct player* votedPlayersList = votedPlayers;
   struct player* votedPlayer = NULL;
   int guiltyVotes = 0, innoVotes = 0, abstVotes = 0; //will be used in the GAMESTATE_JUDGEMENT phase
 
@@ -387,21 +387,12 @@ int main() {
                 sendMessage("Discussion time!", allPlayers, -1);
                 break;
               case GAMESTATE_VOTING:
-                //reset the votes
-
-                for (int n = 0; n < MAX_PLAYERS; n++){
-                  if(allPlayers[n].sockd > 0){
-                    allPlayers[n].voted = 0;
-                    allPlayers[n].votesForTrial = 0;
-                  }
-                }
-
                 if(votingTries <= 0){
                   sendMessage("You have run out of chances to vote to kill a player. NIGHT APPROCHES!", allPlayers, -1);
                   phase = GAMESTATE_NIGHT;
                   continue;
                 }
-
+                votedPlayersList = votedPlayers;
                 //WILL NEED TO BE CHANGED TO ALIVE PLAYERS LATER BUT THIS IS JUST FOR TESTING PURPOSES
                 for(int n = 0; n < MAX_PLAYERS; n++){
                   if(allPlayers[n].sockd > 0) {
@@ -426,6 +417,7 @@ int main() {
                     printf("voted player: %s\n", votedPlayer->name);
                   }
                 }
+                printf("highest: %d, playerCount: %d\n", highestVote, playerCount);
 
                 if(highestVote <= playerCount / 2){
                   //might be a probelm cuz this continue doesn't go out of the while loop
@@ -450,9 +442,6 @@ int main() {
 
                 break;
               case GAMESTATE_JUDGEMENT:
-                guiltyVotes = 0;
-                innoVotes = 0;
-                abstVotes = 0;
                 strcpy(buffer, votedPlayer->name);
                 strcat(buffer, " is on trial. Use /vote abstain, /vote guilty, and /vote innocent to vote whether they should be killed!");
                 sendMessage(buffer, allPlayers, -1);
