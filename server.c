@@ -214,6 +214,7 @@ int main() {
       newPlayer.alive = 1;
       newPlayer.votesForTrial = 0;
       allPlayers[playerCount] = newPlayer;
+      alivePlayers[playerCount] = newPlayer;
       ++playerCount;
       printf("Player connected: %s\n", newPlayer.name );
       printf("Currently %d players\n", playerCount);
@@ -313,6 +314,8 @@ int main() {
     //assign to lists
     allPlayers[i].team = team;
     allPlayers[i].role = role;
+    alivePlayers[i].team = team;
+    alivePlayers[i].role = role;
     if(team == T_TOWN) townPlayers[role] = allPlayers[i];
     if(team == T_MAFIA) mafiaPlayers[role] = allPlayers[i];
     if(team == T_NEUTRAL) neutralPlayers[role] = allPlayers[i];
@@ -457,7 +460,8 @@ int main() {
       }
 
       for(int n = 0; n < MAX_PLAYERS; n++){
-        if(allPlayers[n].sockd > 0 && FD_ISSET(allPlayers[n].sockd, &read_fds)){
+        if(allPlayers[n].sockd > 0) printf("%d %d %d\n", allPlayers[n].sockd, alivePlayers[n].sockd, deadPlayers[n].sockd);
+        if(alivePlayers[n].sockd > 0 && FD_ISSET(alivePlayers[n].sockd, &read_fds)){
           int bytes = read(allPlayers[n].sockd, buffer, BUFFER_SIZE);
           err(bytes, "bad client read in game loop");
           if(bytes == 0) {
@@ -519,12 +523,13 @@ int main() {
 
           }
           if( strncmp(buffer, "/role ", strlen("/role ")) == 0) {
-            parsePlayerCommand(buffer, "/role ");
+            //parsePlayerCommand(buffer, "/role ");
 
             //do role with buffer because buffer is now the name of the player
             //roleAction(name of player target which is buffer)
-            int result = roleAction(allPlayers, deadPlayers, n, buffer);
+            int result = roleAction(alivePlayers, deadPlayers, n, buffer + 6);
             if(!result) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
+            printf("sending dead message\n");
             sendMessage("you dead", deadPlayers, -1);
           }
           //SENDING MESSAGES !!!
@@ -533,11 +538,53 @@ int main() {
             //here we have to add sending messages depending on the phase and what role the people are
           }
         }
+        if(deadPlayers[n].sockd > 0 && FD_ISSET(deadPlayers[n].sockd, &read_fds)){
+          printf("received dead message");
+          int bytes = read(allPlayers[n].sockd, buffer, BUFFER_SIZE);
+          err(bytes, "bad client read in game loop");
+          if(bytes == 0) {
+            char name[256];
+            strcpy(name, allPlayers[n].name);
+            printf("%s disconnected\n", name);
+            int sd = allPlayers[n].sockd;
+            if(allPlayers[n].team == T_TOWN) movePlayer(sd, townPlayers, NULL);
+            if(allPlayers[n].team == T_MAFIA) movePlayer(sd, mafiaPlayers, NULL);
+            if(allPlayers[n].team == T_NEUTRAL) movePlayer(sd, neutralPlayers, NULL);
+            //printf("removing from all");
+            movePlayer(sd, allPlayers, NULL);
+            sprintf(buffer, "[%d] %s disconnected", n, name);
+            sendMessage(buffer, allPlayers, -1);
+            --playerCount;
+            if(playerCount == 0) return 0;
+            continue;
+          }
+          printf("%s\n", buffer);
+
+          //if there is a command like /vote playername or /role target
+          //buffer is now the target or guilty/innocent/abstain
+          if( strncmp(buffer, "/vote ", strlen("/vote ")) == 0) {
+            parsePlayerCommand(buffer, "/vote ");
+          }
+          if( strncmp(buffer, "/role ", strlen("/role ")) == 0) {
+            //parsePlayerCommand(buffer, "/role ");
+
+            //do role with buffer because buffer is now the name of the player
+            //roleAction(name of player target which is buffer)
+            int result = roleAction(alivePlayers, deadPlayers, n, buffer + 6);
+            if(!result) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
+            printf("sending dead message\n");
+            sendMessage("you dead", deadPlayers, -1);
+          }
+          //SENDING MESSAGES !!!
+          else if(phase != GAMESTATE_DEFENSE && phase != GAMESTATE_LASTWORDS){
+            printf("sending dead message");
+            sendMessage(buffer, deadPlayers, n);
+            //here we have to add sending messages depending on the phase and what role the people are
+          }
+        }
+      }
       }
 
-
-
-    }
 
 
     nextPhase = 0;
