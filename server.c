@@ -544,11 +544,27 @@ int main() {
           //buffer is now the target or guilty/innocent/abstain
           //HANDLES ROLE STUFF
           if( strncmp(buffer, "/role ", strlen("/role ")) == 0) {
-            parsePlayerCommand(buffer, "/role ");
+            printf("role sent\n");
+            char* temp = parsePlayerCommand(buffer, "/role ");
 
+            if(allPlayers[n].team == T_MAFIA) {
+              if(phase == GAMESTATE_NIGHT) {
+                
+                int result = roleAction(alivePlayers, deadPlayers, n, temp);
+                if(!result) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
+                printf("sending dead message\n");
+                sendMessage("you dead", deadPlayers, -1);
+              } else singleMessage("You can only use your ability during the night.", allPlayers[n].sockd, -1, NULL);
+            }
+          }
+          //SENDING MESSAGES !!!
+          else if(phase != GAMESTATE_DEFENSE && phase != GAMESTATE_LASTWORDS){
+            printf("sending dead message");
+            sendMessage(buffer, deadPlayers, n);
+            //here we have to add sending messages depending on the phase and what role the people are
+          }
             //do role with buffer because buffer is now the name of the player
             //roleAction(name of player target which is buffer)
-          }
 
 
           char vote[BUFFER_SIZE];
@@ -600,16 +616,16 @@ int main() {
                 continue;
               }
               if( strncmp(buffer, "/vote ", strlen("/vote ")) == 0) {
-                buffer = parsePlayerCommand(buffer, "/vote ");
-                if( strcmp(buffer, "guilty") == 0 ){
+                char* temp = parsePlayerCommand(buffer, "/vote ");
+                if( strcmp(temp, "guilty") == 0 ){
                 guiltyVotes++;
                 strcpy(vote, "guilty");
                 }
-                if( strcmp(buffer, "innocent") == 0 ){
+                if( strcmp(temp, "innocent") == 0 ){
                   innoVotes++;
                   strcpy(vote, "innocent");
                 }
-                if( strcmp(buffer, "abstain") == 0 ){
+                if( strcmp(temp, "abstain") == 0 ){
                   abstVotes++;
                   strcpy(vote, "abstain");
                 }
@@ -639,8 +655,7 @@ int main() {
               break;
 
             case GAMESTATE_NIGHT:
-              //add team based stuff here
-              sendMessage(buffer, allPlayers, -1);
+              //mafia chat
               break;
 
           }
@@ -669,15 +684,12 @@ int main() {
 
           //if there is a command like /vote playername or /role target
           //buffer is now the target or guilty/innocent/abstain
-          if( strncmp(buffer, "/vote ", strlen("/vote ")) == 0) {
-            parsePlayerCommand(buffer, "/vote ");
-          }
           if( strncmp(buffer, "/role ", strlen("/role ")) == 0) {
-            //parsePlayerCommand(buffer, "/role ");
+            printf("role sent\n");
+            char* temp = parsePlayerCommand(buffer, "/role ");
 
             //do role with buffer because buffer is now the name of the player
-            //roleAction(name of player target which is buffer)
-            int result = roleAction(alivePlayers, deadPlayers, n, buffer + 6);
+            int result = roleAction(alivePlayers, deadPlayers, n, temp);
             if(!result) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
             printf("sending dead message\n");
             sendMessage("you dead", deadPlayers, -1);
