@@ -34,13 +34,14 @@ worked on voting system and game phases and command parsing when players do /rol
 worked on voting system
 got rid of player.h because it was redundant with server.h
 STILL NEED TO TEST IT!
-STILL WORKING ON VOTING 
+STILL WORKING ON VOTING
 
 ### 2024-01-10 - Brief description
-Expanded description including how much time was spent on task.
+STILL WORKING ON VOTING and we fixed some player organization in alive players, dead players, disconnected/connceted players
 
 ### 2024-01-11 - Brief description
-Expanded description including how much time was spent on task.
+VOTING DONE!
+starting on role specific stuff
 
 ### 2024-01-12 THROUGH 2024-01-14 - Brief description
 Expanded description including how much time was spent on task.
