@@ -387,6 +387,15 @@ int main() {
                 sendMessage("Discussion time!", allPlayers, -1);
                 break;
               case GAMESTATE_VOTING:
+                //reset the votes
+
+                for (int n = 0; n < MAX_PLAYERS; n++){
+                  if(allPlayers[n].sockd > 0){
+                    allPlayers[n].voted = 0;
+                    allPlayers[n].votesForTrial = 0;
+                  }
+                }
+
                 if(votingTries <= 0){
                   sendMessage("You have run out of chances to vote to kill a player. NIGHT APPROCHES!", allPlayers, -1);
                   phase = GAMESTATE_NIGHT;
@@ -584,13 +593,23 @@ int main() {
               break;
 
             case GAMESTATE_DEFENSE:
-              if(allPlayers[n].sockd != 0 && votedPlayer->sockd == allPlayers[n].sockd){
-                sendMessage(buffer, allPlayers, n);
+              if(allPlayers[n].sockd != 0){
+                if(votedPlayer->sockd == allPlayers[n].sockd){
+                  sendMessage(buffer, allPlayers, n);
+                }
+                else{
+                  singleMessage("Shh... Let the person on trial talk!", allPlayers[n].sockd, -1, NULL);
+                }
               }
+
               break;
 
             case GAMESTATE_JUDGEMENT:
-
+              //player on trial cannot vote
+              if(votedPlayer->sockd == allPlayers[n].sockd){
+                singleMessage("You cannot vote, you are on trial!", votedPlayer->sockd, -1, NULL);
+                continue;
+              }
               if( strncmp(buffer, "/vote ", strlen("/vote ")) == 0) {
                 buffer = parsePlayerCommand(buffer, "/vote ");
                 if( strcmp(buffer, "guilty") == 0 ){
@@ -612,13 +631,22 @@ int main() {
                   sendMessage(buffer, allPlayers, -1);
                 }
               }
+              else{
+                sendMessage(buffer, allPlayers, n);
+              }
 
               break;
 
             case GAMESTATE_LASTWORDS:
-              if(allPlayers[n].sockd != 0 && votedPlayer->sockd == allPlayers[n].sockd){
-                sendMessage(buffer, allPlayers, n);
+              if(allPlayers[n].sockd != 0){
+                if(votedPlayer->sockd == allPlayers[n].sockd){
+                  sendMessage(buffer, allPlayers, n);
+                }
+                else{
+                  singleMessage("Shh... Let the person on trial talk!", allPlayers[n].sockd, -1, NULL);
+                }
               }
+
               break;
 
             case GAMESTATE_NIGHT:
