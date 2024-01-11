@@ -43,11 +43,14 @@ void movePlayer(int sd, struct player* from, struct player* to) {
       return;
     }
   //i is now the location of the target player
+  /*
   if(to != NULL) {
     int j = -1;
     while(to[++j].sockd <= 0); //moves j to next open slot in array
     to[j] = from[i];
   }
+  */
+  to[i] = from[i];
   from[i].sockd = 0;
 }
 
@@ -58,6 +61,7 @@ void movePlayer(int sd, struct player* from, struct player* to) {
 int roleAction(struct player* allPlayers, struct player* deadPlayers, int senderID, char* target) {
     int targetID = -1;
     for(int i = 0; i < MAX_PLAYERS; ++i) {
+        printf("%s %s\n", allPlayers[i].name, target);
         if(strcmp(allPlayers[i].name, target) == 0) {
             targetID = i;
             break;
