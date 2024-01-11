@@ -43,6 +43,9 @@ STILL WORKING ON VOTING and we fixed some player organization in alive players, 
 VOTING DONE!
 starting on role specific stuff
 
+current bugs: client joining is a queue and not spontaneous 
+                voting works but when you try to vote a player and they dont get killed the timer moves on to the next phase
+
 ### 2024-01-12 THROUGH 2024-01-14 - Brief description
 Expanded description including how much time was spent on task.
 

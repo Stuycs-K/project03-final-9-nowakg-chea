@@ -100,6 +100,7 @@ void timerSubserver(int toServer, int fromServer) {
   int phase = 0, time = 0, done = 0;
   while(!done) {
     read(fromServer, &phase, sizeof(int));
+    printf("phase (time): %d \n", phase);
     switch(phase) {
       case GAMESTATE_DAY: time = 3; break; //originally 15
       case GAMESTATE_DISCUSSION: time = 3; break; //originally 45
@@ -116,24 +117,6 @@ void timerSubserver(int toServer, int fromServer) {
     }
   }
 }
-
-// //if the destination player list is NULL, it removes the player from the game as if they never joined
-// //if shift is true, then the players
-// void movePlayer(int sd, struct player* from, struct player* to) {
-//   int i = -1;
-//   while(from[++i].sockd != sd)
-//     if(i >= MAX_PLAYERS) {
-//       printf("Missing sd in removePlayer\n");
-//       return;
-//     }
-//   //i is now the location of the target player
-//   if(to != NULL) {
-//     int j = -1;
-//     while(to[++j].sockd <= 0); //moves j to next open slot in array
-//     to[j] = from[i];
-//   }
-//   from[i].sockd = 0;
-// }
 
 //if there is delib in command increment the pointer to go past the delib
 char* parsePlayerCommand(char *command, char* delib){
@@ -467,6 +450,7 @@ int main() {
                   sprintf(buffer, " has not enough votes to be killed. You now have %d tries left to vote a player.", votingTries );
                   sendMessage(buffer, allPlayers, -1);
                   phase = GAMESTATE_VOTING;
+                  write(mainToTimer[PIPE_WRITE], &phase, sizeof(int));
                   votedPlayer = NULL;
                   continue;
                 }
@@ -542,7 +526,7 @@ int main() {
       }
 
       for(int n = 0; n < MAX_PLAYERS; n++){
-        if(allPlayers[n].sockd > 0) printf("%d %d %d\n", allPlayers[n].sockd, alivePlayers[n].sockd, deadPlayers[n].sockd);
+        //if(allPlayers[n].sockd > 0) printf("%d %d %d\n", allPlayers[n].sockd, alivePlayers[n].sockd, deadPlayers[n].sockd);
         if(alivePlayers[n].sockd > 0 && FD_ISSET(alivePlayers[n].sockd, &read_fds)){
           int bytes = read(allPlayers[n].sockd, buffer, BUFFER_SIZE);
           err(bytes, "bad client read in game loop");
@@ -604,6 +588,9 @@ int main() {
                     sendMessage(buffer, allPlayers, n);
                   }
                 }
+              }
+              else{
+                sendMessage(buffer, allPlayers, n);
               }
 
 
