@@ -72,7 +72,8 @@ I added checks for clients disconnecting with a message and chat and made the se
 I expanded the player disconnect checks and had to rewrite a lot to fix a bug where disconnecting would lock all players with higher IDs out of the game.
 
 ### 2024-01-10 - Brief description
-Expanded description including how much time was spent on task.
+I worked on making mafia able to kill people, and implemented the alive/deadPlayers arrays and made a dead chat to show killing effects.
+There's still no checks, e.g. mafia can't win and you can kill yourself/your teammates.
 
 ### 2024-01-11 - Brief description
 Expanded description including how much time was spent on task.
