@@ -34,7 +34,7 @@ char* intToRole(int role, int team) {
 }
 
 //if the destination player list is NULL, it removes the player from the game as if they never joined
-//if shift is true, then the players 
+//if shift is true, then the players
 void movePlayer(int sd, struct player* from, struct player* to) {
   int i = -1;
   while(from[++i].sockd != sd)
