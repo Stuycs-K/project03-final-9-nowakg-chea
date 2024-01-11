@@ -107,6 +107,7 @@ void timerSubserver(int toServer, int fromServer) {
       case GAMESTATE_VOTING: time = 30; break;
       case GAMESTATE_DEFENSE: time = 20; break;
       case GAMESTATE_JUDGEMENT: time = 20; break;
+      case GAMESTATE_VOTE_COUNTING: time = 30; break;
       case GAMESTATE_LASTWORDS: time = 7; break;
       case GAMESTATE_KILL_VOTED: time = 5; break;
       case GAMESTATE_NIGHT: time = 37; break;
@@ -357,8 +358,6 @@ int main() {
 
   while(win < 0){
     printf("new phase: %d\n", phase);
-    //timer
-    write(mainToTimer[PIPE_WRITE], &phase, sizeof(int));
 
     FD_ZERO(&read_fds);
     //add the sockd descriptor OF EVERY PLAYER and stdin to the set
@@ -378,6 +377,7 @@ int main() {
                   phase = GAMESTATE_NIGHT;
                   continue;
                 }
+                votingTries--;
                 votedPlayersList = votedPlayers;
                 //WILL NEED TO BE CHANGED TO ALIVE PLAYERS LATER BUT THIS IS JUST FOR TESTING PURPOSES
                 //resets amount of votes for this player to stand trial
@@ -417,22 +417,19 @@ int main() {
 
 
 
-                votingTries--;
+
                 strcpy(buffer, votedPlayer->name);
                 printf("phase %d\n", phase);
                 strcat(buffer, " is on trial. They will now state their case as to why they are not guilty!");
                 sendMessage(buffer, allPlayers, -1);
-
                 break;
               case GAMESTATE_JUDGEMENT:
                 strcpy(buffer, votedPlayer->name);
                 strcat(buffer, " is on trial. Use /vote abstain, /vote guilty, and /vote innocent to vote whether they should be killed!");
                 sendMessage(buffer, allPlayers, -1);
                 break;
-              case GAMESTATE_LASTWORDS:
-
-                //count the votes of all players
-
+              case GAMESTATE_VOTE_COUNTING:
+              //count the votes of all players
                 for(int n = 0; n < MAX_PLAYERS; n++){
                   if(allPlayers[n].sockd > 0){
                     if(allPlayers[n].whatVote == VOTE_ABSTAIN){
@@ -450,15 +447,9 @@ int main() {
                   sprintf(buffer, " has not enough votes to be killed. You now have %d tries left to vote a player.", votingTries );
                   sendMessage(buffer, allPlayers, -1);
                   phase = GAMESTATE_VOTING;
-                  write(mainToTimer[PIPE_WRITE], &phase, sizeof(int));
                   votedPlayer = NULL;
                   continue;
                 }
-
-                strcpy(buffer, votedPlayer->name);
-                strcat(buffer, " will now say their last words.");
-                sendMessage(buffer, allPlayers, -1);
-
                 abstVotes = 0;
                 innoVotes = 0;
                 guiltyVotes = 0;
@@ -469,31 +460,40 @@ int main() {
                     allPlayers[n].whatVote = VOTE_ABSTAIN;
                   }
                 }
-
                 break;
+
+              case GAMESTATE_LASTWORDS:
+                strcpy(buffer, votedPlayer->name);
+                strcat(buffer, " will now say their last words.");
+                sendMessage(buffer, allPlayers, -1);
+                break;
+
               case GAMESTATE_KILL_VOTED:
                 if(votedPlayer != NULL && votedPlayer->sockd != 0){
                   sprintf(buffer, "%s has been killed. (insert dying animation)", votedPlayer->name );
                   sendMessage(buffer, allPlayers, -1);
 
                   //KILL THE GUILTY PLAYER!!!
+                  movePlayer(votedPlayer->sockd, deadPlayers, NULL);
 
                   votedPlayer = NULL;
                   phase = GAMESTATE_NIGHT;
                   continue;
                 }
-
                 break;
+
               case GAMESTATE_NIGHT:
                 if(votedPlayer != NULL){
                   //kill this voted Player!!!
                 }
-
                 sendMessage("Talk to other mafia players and conspire to eliminate the town! Use /role target to do your role's action. If you have a role that requires you to target yourself do /role your-name.", mafiaPlayers, -1);
                 sendMessage("Good luck! Use /role target to do your role's action. If you have a role that requires you to target yourself do /role your-name.", townPlayers, -1);
                 sendMessage("Good luck! Use /role target to do your role's action. If you have a role that requires you to target yourself do /role your-name.", neutralPlayers, -1);
                 break;
             }
+
+    //timer
+    write(mainToTimer[PIPE_WRITE], &phase, sizeof(int));
 
     while(!nextPhase) {
       FD_ZERO(&read_fds);
