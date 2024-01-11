@@ -230,7 +230,10 @@ int main() {
       read(newPlayer.sockd, buffer, BUFFER_SIZE);
       strcpy(newPlayer.name, buffer);
       newPlayer.alive = 1;
+
       newPlayer.votesForTrial = 0;
+      newPlayer.whatVote = VOTE_ABSTAIN;
+
       allPlayers[playerCount] = newPlayer;
       alivePlayers[playerCount] = newPlayer;
       ++playerCount;
@@ -394,13 +397,10 @@ int main() {
                 }
                 votedPlayersList = votedPlayers;
                 //WILL NEED TO BE CHANGED TO ALIVE PLAYERS LATER BUT THIS IS JUST FOR TESTING PURPOSES
+                //resets amount of votes for this player to stand trial
                 for(int n = 0; n < MAX_PLAYERS; n++){
                   if(allPlayers[n].sockd > 0) {
-                    allPlayers[n].voted = FALSE;
                     allPlayers[n].votesForTrial = 0;
-                    guiltyVotes = 0;
-                    abstVotes = 0;
-                    innoVotes = 0;
                   }
                 }
                 sprintf(buffer,"It is time to vote! You have %d tries left to vote to kill a player. Use /vote player_name to vote to put a player on trial.",votingTries);
@@ -447,6 +447,22 @@ int main() {
                 sendMessage(buffer, allPlayers, -1);
                 break;
               case GAMESTATE_LASTWORDS:
+
+                //count the votes of all players
+
+                for(int n = 0; n < MAX_PLAYERS; n++){
+                  if(allPlayers[n].sockd > 0){
+                    if(allPlayers[n].whatVote == VOTE_ABSTAIN){
+                      abstVotes++;
+                    }
+                    if(allPlayers[n].whatVote == VOTE_INNOCENT){
+                      innoVotes++;
+                    }
+                    if(allPlayers[n].whatVote == VOTE_GUILTY){
+                      guiltyVotes++;
+                    }
+                  }
+                }
                 if(guiltyVotes <= innoVotes){
                   sprintf(buffer, " has not enough votes to be killed. You now have %d tries left to vote a player.", votingTries );
                   sendMessage(buffer, allPlayers, -1);
@@ -458,6 +474,18 @@ int main() {
                 strcpy(buffer, votedPlayer->name);
                 strcat(buffer, " will now say their last words.");
                 sendMessage(buffer, allPlayers, -1);
+
+                abstVotes = 0;
+                innoVotes = 0;
+                guiltyVotes = 0;
+
+                //reset player's votes
+                for(int n = 0; n < MAX_PLAYERS; n++){
+                  if(allPlayers[n].sockd > 0){
+                    allPlayers[n].whatVote = VOTE_ABSTAIN;
+                  }
+                }
+
                 break;
               case GAMESTATE_KILL_VOTED:
                 if(votedPlayer != NULL && votedPlayer->sockd != 0){
@@ -573,7 +601,7 @@ int main() {
                     votedPlayersList++;
                     allPlayers[i].votesForTrial++;
                     sprintf(buffer, "[%d] %s has voted", n, allPlayers[n].name);
-                    sendMessage(buffer, allPlayers, -1);
+                    sendMessage(buffer, allPlayers, n);
                   }
                 }
               }
@@ -602,22 +630,22 @@ int main() {
               if( strncmp(buffer, "/vote ", strlen("/vote ")) == 0) {
                 buffer = parsePlayerCommand(buffer, "/vote ");
                 if( strcmp(buffer, "guilty") == 0 ){
-                guiltyVotes++;
+                allPlayers[n].whatVote = VOTE_GUILTY;
                 strcpy(vote, "guilty");
                 }
                 if( strcmp(buffer, "innocent") == 0 ){
-                  innoVotes++;
+                  allPlayers[n].whatVote = VOTE_INNOCENT;
                   strcpy(vote, "innocent");
                 }
                 if( strcmp(buffer, "abstain") == 0 ){
-                  abstVotes++;
+                  allPlayers[n].whatVote = VOTE_ABSTAIN;
                   strcpy(vote, "abstain");
                 }
                 if( strlen(vote) > 1 ){
                   sprintf(buffer, "[%d] %s ", n, allPlayers[n].name);
                   strcat(buffer, "has voted ");
                   strcat(buffer, vote);
-                  sendMessage(buffer, allPlayers, -1);
+                  sendMessage(buffer, allPlayers, n);
                 }
               }
               else{

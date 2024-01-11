@@ -24,6 +24,10 @@
 #define PLAYER_ALIVE 1
 #define PLAYER_DEAD 0
 
+#define VOTE_ABSTAIN 0
+#define VOTE_GUILTY 1
+#define VOTE_INNOCENT 2
+
 #define TRUE 1
 #define FALSE 0
 
@@ -40,7 +44,7 @@
 #define PIPE_WRITE 1
 
 
-struct player {int sockd; char name[16]; int alive; int votesForTrial; int voted; int team; int role;};
+struct player {int sockd; char name[16]; int alive; int votesForTrial; int whatVote; int team; int role;};
 void err(int i, char*message);
 void movePlayer(int sd, struct player* from, struct player* to);
 //void serverStart();
