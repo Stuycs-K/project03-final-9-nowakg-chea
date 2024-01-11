@@ -82,6 +82,20 @@ void sendMessage(char* message, struct player allPlayers[], int id){
   }
 }
 
+//takes SOCKET DESCRIPTOR of target and ID NUMBER of sender
+void singleMessage(char* message, int targetSD, int senderID, char* senderName) {
+  char toClient[BUFFER_SIZE] = "[";
+  if(senderID == -1) strcpy(toClient, "\033[32mserver");
+  else {
+    sprintf(toClient + 1, "%d] ", senderID);
+    strcat(toClient, senderName);
+  }
+  strcat(toClient, ": ");
+  strcat(toClient, message);
+  if(senderID == -1) strcat(toClient, "\033[0m");
+  write(targetSD, toClient, BUFFER_SIZE);
+}
+
 void timerSubserver(int toServer, int fromServer) {
   int phase = 0, time = 0, done = 0;
   while(!done) {
@@ -103,7 +117,7 @@ void timerSubserver(int toServer, int fromServer) {
 }
 
 //if the destination player list is NULL, it removes the player from the game as if they never joined
-//if shift is true, then the players 
+//if shift is true, then the players
 void movePlayer(int sd, struct player* from, struct player* to) {
   int i = -1;
   while(from[++i].sockd != sd)
@@ -217,6 +231,7 @@ int main() {
       newPlayer.alive = 1;
       newPlayer.votesForTrial = 0;
       allPlayers[playerCount] = newPlayer;
+      alivePlayers[playerCount] = newPlayer;
       ++playerCount;
       printf("Player connected: %s\n", newPlayer.name );
       printf("Currently %d players\n", playerCount);
@@ -316,11 +331,13 @@ int main() {
     //assign to lists
     allPlayers[i].team = team;
     allPlayers[i].role = role;
+    alivePlayers[i].team = team;
+    alivePlayers[i].role = role;
     if(team == T_TOWN) townPlayers[role] = allPlayers[i];
     if(team == T_MAFIA) mafiaPlayers[role] = allPlayers[i];
     if(team == T_NEUTRAL) neutralPlayers[role] = allPlayers[i];
   }
-  
+
 
   sendMessage("Game: Your role and team is...", allPlayers, -1);
 
@@ -457,12 +474,11 @@ int main() {
         if(time == 120 || time == 60 || time == 30 || time == 15 || time == 10 || time == 5 || time == 4 || time == 3 || time == 2|| time == 1) printf("%ds left\n", time);
         continue;
       }
-      
-      
-      for(int n = 0; n < MAX_PLAYERS; n++){
 
-        //handles disconnections
-        if(allPlayers[n].sockd > 0 && FD_ISSET(allPlayers[n].sockd, &read_fds)){
+
+      for(int n = 0; n < MAX_PLAYERS; n++){
+        if(allPlayers[n].sockd > 0) printf("%d %d %d\n", allPlayers[n].sockd, alivePlayers[n].sockd, deadPlayers[n].sockd);
+        if(alivePlayers[n].sockd > 0 && FD_ISSET(alivePlayers[n].sockd, &read_fds)){
           int bytes = read(allPlayers[n].sockd, buffer, BUFFER_SIZE);
           err(bytes, "bad client read in game loop");
           if(bytes == 0) {
@@ -504,7 +520,7 @@ int main() {
             case GAMESTATE_DAY:
               sendMessage(buffer, allPlayers, n);
               break;
-            
+
             case GAMESTATE_DISCUSSION:
               sendMessage(buffer, allPlayers, n);
               break;
@@ -521,13 +537,13 @@ int main() {
                     allPlayers[i].votesForTrial++;
                     sprintf(buffer, "[%d] %s has voted", n, allPlayers[n].name);
                     sendMessage(buffer, allPlayers, -1);
-                  } 
+                  }
                 }
               }
 
-              
+
               break;
-            
+
             case GAMESTATE_DEFENSE:
               for(int n = 0; n < MAX_PLAYERS; n++){
                 if(votedPlayer->sockd == allPlayers[n].sockd){
@@ -559,9 +575,9 @@ int main() {
                   sendMessage(buffer, allPlayers, -1);
                 }
               }
-      
+
               break;
-            
+
             case GAMESTATE_LASTWORDS:
               for(int n = 0; n < MAX_PLAYERS; n++){
                 if(votedPlayer->sockd == allPlayers[n].sockd){
@@ -577,11 +593,53 @@ int main() {
 
           }
         }
+        if(deadPlayers[n].sockd > 0 && FD_ISSET(deadPlayers[n].sockd, &read_fds)){
+          printf("received dead message");
+          int bytes = read(allPlayers[n].sockd, buffer, BUFFER_SIZE);
+          err(bytes, "bad client read in game loop");
+          if(bytes == 0) {
+            char name[256];
+            strcpy(name, allPlayers[n].name);
+            printf("%s disconnected\n", name);
+            int sd = allPlayers[n].sockd;
+            if(allPlayers[n].team == T_TOWN) movePlayer(sd, townPlayers, NULL);
+            if(allPlayers[n].team == T_MAFIA) movePlayer(sd, mafiaPlayers, NULL);
+            if(allPlayers[n].team == T_NEUTRAL) movePlayer(sd, neutralPlayers, NULL);
+            //printf("removing from all");
+            movePlayer(sd, allPlayers, NULL);
+            sprintf(buffer, "[%d] %s disconnected", n, name);
+            sendMessage(buffer, allPlayers, -1);
+            --playerCount;
+            if(playerCount == 0) return 0;
+            continue;
+          }
+          printf("%s\n", buffer);
+
+          //if there is a command like /vote playername or /role target
+          //buffer is now the target or guilty/innocent/abstain
+          if( strncmp(buffer, "/vote ", strlen("/vote ")) == 0) {
+            parsePlayerCommand(buffer, "/vote ");
+          }
+          if( strncmp(buffer, "/role ", strlen("/role ")) == 0) {
+            //parsePlayerCommand(buffer, "/role ");
+
+            //do role with buffer because buffer is now the name of the player
+            //roleAction(name of player target which is buffer)
+            int result = roleAction(alivePlayers, deadPlayers, n, buffer + 6);
+            if(!result) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
+            printf("sending dead message\n");
+            sendMessage("you dead", deadPlayers, -1);
+          }
+          //SENDING MESSAGES !!!
+          else if(phase != GAMESTATE_DEFENSE && phase != GAMESTATE_LASTWORDS){
+            printf("sending dead message");
+            sendMessage(buffer, deadPlayers, n);
+            //here we have to add sending messages depending on the phase and what role the people are
+          }
+        }
+      }
       }
 
-
-
-    }
 
 
     nextPhase = 0;
