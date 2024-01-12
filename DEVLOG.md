@@ -83,6 +83,7 @@ There's still no checks, e.g. mafia can't win and you can kill yourself/your tea
 
 ### 2024-01-11 - Brief description
 I made the server announce player deaths in the morning and mafia killing decisions in mafia chat and fixed some bugs with the private chats.
+I also merged our branches and fixed Gaven's phase repeating bug.
 
 ### 2024-01-12 THROUGH 2024-01-14 - Brief description
 Expanded description including how much time was spent on task.
