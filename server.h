@@ -45,7 +45,7 @@
 #define PIPE_WRITE 1
 
 
-struct player {int sockd; char name[16]; int alive; int votesForTrial; int whatVote; int team; int role;};
+struct player {int sockd; char name[16]; int alive; int votesForTrial; int whatVote; int team; int role; int hasWon;};
 void err(int i, char*message);
 void movePlayer(int sd, struct player* from, struct player* to);
 //void serverStart();

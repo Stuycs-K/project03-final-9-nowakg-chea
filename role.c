@@ -69,6 +69,7 @@ int roleAction(struct player* allPlayers, struct player* deadPlayers, int sender
     }
     if(targetID == -1) return 0;
     int team = allPlayers[senderID].team;
+    int role = allPlayers[senderID].role;
     if(team == T_TOWN) {
 
     }

@@ -330,10 +330,25 @@ int main() {
 
   sendMessage("Game: Your role and team is...", allPlayers, -1);
 
+  int townAlive = 0;
+  int mafiaAlive = 0;
+  int neutralAlive = 0;
+  //used for win conditions LATER
+
   for(int i = 0; i < playerCount; ++i) {
     printf("%s: %s %s\n", allPlayers[i].name, intToTeam(allPlayers[i].team), intToRole(allPlayers[i].role, allPlayers[i].team));
     write(allPlayers[i].sockd, intToRole(allPlayers[i].role, allPlayers[i].team), BUFFER_SIZE);
     write(allPlayers[i].sockd, intToTeam(allPlayers[i].team), BUFFER_SIZE);
+
+    if(allPlayers[i].team == T_TOWN){
+      townAlive++;
+    }
+    if(allPlayers[i].team == T_MAFIA){
+      mafiaAlive++;
+    }
+    if(allPlayers[i].team == T_NEUTRAL){
+      neutralAlive++;
+    }
   }
 
   sendMessage("Game: Hit enter to start!", allPlayers, -1);
@@ -359,13 +374,23 @@ int main() {
 
   while(win < 0){
     printf("new phase: %d\n", phase);
-
     if(phase == GAMESTATE_DISCUSSION) {
       for(int i = 0; i < MAX_PLAYERS; ++i) {
         if(dyingPlayers[i].sockd > 0) {
           deadPlayers[i] = dyingPlayers[i];
+          if(deadPlayers[i].team == T_TOWN){
+            townAlive--;
+          }
+          if(deadPlayers[i].team == T_MAFIA){
+            mafiaAlive--;
+          }
+          if(deadPlayers[i].team == T_NEUTRAL){
+            neutralAlive--;
+          }
+
+
           sprintf(buffer, "%s died last night. Their role was %s.", deadPlayers[i].name, intToRole(deadPlayers[i].role, deadPlayers[i].team));
-          sendMessage(buffer, allPlayers, -1);
+          sendMessage(buffer, alivePlayers, -1);
           singleMessage("You have been killed! You can now talk with other dead players.", deadPlayers[i].sockd, -1, NULL);
           sleep(2);
         }
@@ -376,6 +401,21 @@ int main() {
 
     //timer
     //write(mainToTimer[PIPE_WRITE], &phase, sizeof(int));
+
+    //win logic
+    if(townAlive == 0){
+      win = T_TOWN;
+      break;
+    }
+    if(mafiaAlive == 0){
+      win = T_MAFIA;
+      break;
+    }
+    if(neutralAlive == 0){
+      win = T_NEUTRAL;
+      break;
+    }
+
 
     FD_ZERO(&read_fds);
 
@@ -487,8 +527,12 @@ int main() {
 
               case GAMESTATE_KILL_VOTED:
                 if(votedPlayer != NULL && votedPlayer->sockd != 0){
-                  sprintf(buffer, "%s has been killed. (insert dying animation)", votedPlayer->name );
+                  sprintf(buffer, "%s has been killed. (insert dying animation).\n Their team was: %s and their role was: %s.", votedPlayer->name, intToTeam(votedPlayer->team), intToRole(votedPlayer->role, votedPlayer->team));
                   sendMessage(buffer, allPlayers, -1);
+
+                  if(votedPlayer->role == R_JESTER){
+                    votedPlayer->hasWon = TRUE;
+                  }
 
                   //KILL THE GUILTY PLAYER!!!
                   movePlayer(votedPlayer->sockd, deadPlayers, NULL);
@@ -578,7 +622,7 @@ int main() {
 
             if(allPlayers[n].team == T_MAFIA) {
               if(phase == GAMESTATE_NIGHT) {
-                
+
                 int targetID = roleAction(alivePlayers, dyingPlayers, n, temp);
                 if(!targetID) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
                 else {
@@ -592,19 +636,10 @@ int main() {
                   free(temp);
                   sendMessage(buffer, mafiaPlayers, -1);
                 }
-              } else singleMessage("You can only use your ability during the night.", allPlayers[n].sockd, -1, NULL);
+              } else singleMessage("You can only use your role ability during the night.", allPlayers[n].sockd, -1, NULL);
               continue;
             }
           }
-          //SENDING MESSAGES !!!
-          else if(phase != GAMESTATE_DEFENSE && phase != GAMESTATE_LASTWORDS){
-            printf("sending dead message");
-            sendMessage(buffer, deadPlayers, n);
-            //here we have to add sending messages depending on the phase and what role the people are
-          }
-            //do role with buffer because buffer is now the name of the player
-            //roleAction(name of player target which is buffer)
-
 
           char vote[BUFFER_SIZE];
           //handle messages
@@ -740,11 +775,26 @@ int main() {
     if(phase == GAMESTATE_NIGHT + 1) phase = GAMESTATE_DISCUSSION;
   }
 
-//PAST HERE SOME GROUP OR TEAM HAS WON OR EVERYONE IS DEAD
+  //PAST HERE SOME GROUP OR TEAM HAS WON OR EVERYONE IS DEAD
 
+  for(int n = 0; n < MAX_PLAYERS; n++){
+    if(allPlayers[n].sockd < 0){
+      if(win == T_TOWN && allPlayers[n].team == T_TOWN){
+        allPlayers[n].hasWon = TRUE;
+      }
+      if(win == T_MAFIA && allPlayers[n].team == T_MAFIA){
+        allPlayers[n].hasWon = TRUE;
+      }
+    }
+  }
 
+  if(win == T_TOWN){
+    sendMessage("THE TOWN HAS WON!", allPlayers, -1);
+  }
+  if(win == T_MAFIA){
+    sendMessage("THE MAFIA HAS WON!", allPlayers, -1);
+  }
 
-  sendMessage("Somebody won here...", allPlayers, -1);
 
 
 
@@ -757,6 +807,7 @@ int main() {
   free(townPlayers);
   free(alivePlayers);
   free(deadPlayers);
+  free(dyingPlayers);
   free(votedPlayers);
   free(buffer);
 
