@@ -330,10 +330,25 @@ int main() {
 
   sendMessage("Game: Your role and team is...", allPlayers, -1);
 
+  int townAlive = 0;
+  int mafiaAlive = 0;
+  int neutralAlive = 0;
+  //used for win conditions LATER
+
   for(int i = 0; i < playerCount; ++i) {
     printf("%s: %s %s\n", allPlayers[i].name, intToTeam(allPlayers[i].team), intToRole(allPlayers[i].role, allPlayers[i].team));
     write(allPlayers[i].sockd, intToRole(allPlayers[i].role, allPlayers[i].team), BUFFER_SIZE);
     write(allPlayers[i].sockd, intToTeam(allPlayers[i].team), BUFFER_SIZE);
+
+    if(allPlayers[i].team == T_TOWN){
+      townAlive++;
+    }
+    if(allPlayers[i].team == T_MAFIA){
+      mafiaAlive++;
+    }
+    if(allPlayers[i].team == T_NEUTRAL){
+      neutralAlive++;
+    }
   }
 
   sendMessage("Game: Hit enter to start!", allPlayers, -1);
@@ -356,15 +371,23 @@ int main() {
   int win = -1; //win will be equal to the team that wins so like T_MAFIA or T_TOWN
 
   printf("\n\nBEGINNING GAME!\n\n");
-
   while(win < 0){
     printf("new phase: %d\n", phase);
-
     if(phase == GAMESTATE_DISCUSSION) {
       for(int i = 0; i < MAX_PLAYERS; ++i) {
         if(dyingPlayers[i].sockd > 0) {
           allPlayers[i].alive = 0;
           deadPlayers[i] = dyingPlayers[i];
+          if(deadPlayers[i].team == T_TOWN){
+            townAlive--;
+          }
+          if(deadPlayers[i].team == T_MAFIA){
+            mafiaAlive--;
+          }
+          if(deadPlayers[i].team == T_NEUTRAL){
+            neutralAlive--;
+          }
+
           sprintf(buffer, "%s died last night. Their role was %s.", deadPlayers[i].name, intToRole(deadPlayers[i].role, deadPlayers[i].team));
           sendMessage(buffer, allPlayers, -1);
           singleMessage("You have been killed! You can now talk with other dead players.", deadPlayers[i].sockd, -1, NULL);
@@ -372,16 +395,28 @@ int main() {
           sleep(2);
         }
       }
-      free(dyingPlayers);
+      //free(dyingPlayers);
       dyingPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
     }
-
-    //timer
-    //write(mainToTimer[PIPE_WRITE], &phase, sizeof(int));
+    printf("yo\n");
+    //win logic
+    if(mafiaAlive == 0){
+      win = T_TOWN;
+      break;
+    }
+    if(townAlive == 0){
+      win = T_MAFIA;
+      break;
+    }
+    /*
+    if(neutralAlive == 0){
+      win = T_NEUTRAL;
+    }
+    */
 
     FD_ZERO(&read_fds);
 
-
+    printf("yo\n");
     switch(phase) {
               case GAMESTATE_DAY:
                 sendMessage("Welcome to the Town of C-lem. If you are on the town team, you must vote to kill all the mafia members.  If you are the mafia you must kill all the town. If you are a neutral player you can win with either town or mafia but you have some other way to win. Have fun!", allPlayers, -1);
@@ -489,8 +524,12 @@ int main() {
 
               case GAMESTATE_KILL_VOTED:
                 if(votedPlayer != NULL && votedPlayer->sockd != 0){
-                  sprintf(buffer, "%s has been killed. (insert dying animation)", votedPlayer->name );
+                  sprintf(buffer, "%s has been killed. (insert dying animation).\n Their team was: %s and their role was: %s.", votedPlayer->name, intToTeam(votedPlayer->team), intToRole(votedPlayer->role, votedPlayer->team));
                   sendMessage(buffer, allPlayers, -1);
+
+                  if(votedPlayer->role == R_JESTER){
+                    votedPlayer->hasWon = TRUE;
+                  }
 
                   //KILL THE GUILTY PLAYER!!!
                   movePlayer(votedPlayer->sockd, deadPlayers, NULL);
@@ -545,6 +584,7 @@ int main() {
       }
 
       for(int n = 0; n < MAX_PLAYERS; n++){
+        char vote[BUFFER_SIZE];
         //if(allPlayers[n].sockd > 0) printf("%d %d %d\n", allPlayers[n].sockd, alivePlayers[n].sockd, deadPlayers[n].sockd);
         if(alivePlayers[n].sockd > 0 && FD_ISSET(alivePlayers[n].sockd, &read_fds)){
           int bytes = read(allPlayers[n].sockd, buffer, BUFFER_SIZE);
@@ -577,10 +617,12 @@ int main() {
           if( strncmp(buffer, "/role ", strlen("/role ")) == 0) {
             printf("role sent\n");
             char* temp = parsePlayerCommand(buffer, "/role ");
+            printf("temp: %s\n", temp);
 
             if(allPlayers[n].team == T_MAFIA) {
               if(phase == GAMESTATE_NIGHT) {
-                
+
+                printf("\n\nROLE ACTION!!\n\n");
                 int targetID = roleAction(alivePlayers, dyingPlayers, n, temp);
                 if(!targetID) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
                 else {
@@ -594,116 +636,104 @@ int main() {
                   free(temp);
                   sendMessage(buffer, mafiaPlayers, -1);
                 }
-              } else singleMessage("You can only use your ability during the night.", allPlayers[n].sockd, -1, NULL);
-              continue;
+              } else singleMessage("You can only use your role ability during the night.", allPlayers[n].sockd, -1, NULL);
             }
-          }
-          //SENDING MESSAGES !!!
-          else if(phase != GAMESTATE_DEFENSE && phase != GAMESTATE_LASTWORDS){
-            printf("sending dead message");
-            sendMessage(buffer, deadPlayers, n);
-            //here we have to add sending messages depending on the phase and what role the people are
-          }
-            //do role with buffer because buffer is now the name of the player
-            //roleAction(name of player target which is buffer)
+          } else {
+            //handle messages
+            switch(phase){
+              case GAMESTATE_DAY:
+                sendMessage(buffer, allPlayers, n);
+                break;
+
+              case GAMESTATE_DISCUSSION:
+                sendMessage(buffer, allPlayers, n);
+                break;
+
+              case GAMESTATE_VOTING:
+                //find the player struct based on their name that a player voted for
+                if( strncmp(buffer, "/vote ", strlen("/vote ")) == 0) {
+                  buffer = parsePlayerCommand(buffer, "/vote ");
+                  for(int i = 0; i < MAX_PLAYERS; i++){
+                  //GOTTA CHANGE TO ALIVE PLAYERS CUZ YOU CANT VOTE A DEAD PLAYER BUT THIS IS FINE FOR NOW
+                    if( allPlayers[i].sockd > 0 && strcmp(buffer, allPlayers[i].name) == 0 ){
+                      *votedPlayersList = allPlayers[i];
+                      votedPlayersList++;
+                      allPlayers[i].votesForTrial++;
+                      sprintf(buffer, "[%d] %s has voted", n, allPlayers[n].name);
+                      sendMessage(buffer, allPlayers, n);
+                    }
+                  }
+                }
+                else{
+                  sendMessage(buffer, allPlayers, n);
+                }
 
 
-          char vote[BUFFER_SIZE];
-          //handle messages
-          switch(phase){
-            case GAMESTATE_DAY:
-              sendMessage(buffer, allPlayers, n);
-              break;
+                break;
 
-            case GAMESTATE_DISCUSSION:
-              sendMessage(buffer, allPlayers, n);
-              break;
+              case GAMESTATE_DEFENSE:
+                if(allPlayers[n].sockd != 0){
+                  if(votedPlayer->sockd == allPlayers[n].sockd){
+                    sendMessage(buffer, allPlayers, n);
+                  }
+                  else{
+                    singleMessage("Shh... Let the person on trial talk!", allPlayers[n].sockd, -1, NULL);
+                  }
+                }
 
-            case GAMESTATE_VOTING:
-              //find the player struct based on their name that a player voted for
-              if( strncmp(buffer, "/vote ", strlen("/vote ")) == 0) {
-                buffer = parsePlayerCommand(buffer, "/vote ");
-                for(int i = 0; i < MAX_PLAYERS; i++){
-                //GOTTA CHANGE TO ALIVE PLAYERS CUZ YOU CANT VOTE A DEAD PLAYER BUT THIS IS FINE FOR NOW
-                  if( allPlayers[i].sockd > 0 && strcmp(buffer, allPlayers[i].name) == 0 ){
-                    *votedPlayersList = allPlayers[i];
-                    votedPlayersList++;
-                    allPlayers[i].votesForTrial++;
-                    sprintf(buffer, "[%d] %s has voted", n, allPlayers[n].name);
+                break;
+
+              case GAMESTATE_JUDGEMENT:
+              //player on trial cannot vote
+              if(votedPlayer->sockd == allPlayers[n].sockd){
+                  singleMessage("You cannot vote, you are on trial!", votedPlayer->sockd, -1, NULL);
+                  continue;
+                }
+                if( strncmp(buffer, "/vote ", strlen("/vote ")) == 0) {
+                  char* temp = parsePlayerCommand(buffer, "/vote ");
+                  if( strcmp(temp, "guilty") == 0 ){
+                  guiltyVotes++;
+                  strcpy(vote, "guilty");
+                  }
+                  if( strcmp(temp, "innocent") == 0 ){
+                    innoVotes++;
+                    strcpy(vote, "innocent");
+                  }
+                  if( strcmp(temp, "abstain") == 0 ){
+                    abstVotes++;
+                    strcpy(vote, "abstain");
+                  }
+                  if( strlen(vote) > 1 ){
+                    sprintf(buffer, "[%d] %s ", n, allPlayers[n].name);
+                    strcat(buffer, "has voted ");
+                    strcat(buffer, vote);
                     sendMessage(buffer, allPlayers, n);
                   }
                 }
-              }
-              else{
-                sendMessage(buffer, allPlayers, n);
-              }
-
-
-              break;
-
-            case GAMESTATE_DEFENSE:
-              if(allPlayers[n].sockd != 0){
-                if(votedPlayer->sockd == allPlayers[n].sockd){
-                  sendMessage(buffer, allPlayers, n);
-                }
                 else{
-                  singleMessage("Shh... Let the person on trial talk!", allPlayers[n].sockd, -1, NULL);
-                }
-              }
-
-              break;
-
-            case GAMESTATE_JUDGEMENT:
-              //player on trial cannot vote
-              if(votedPlayer->sockd == allPlayers[n].sockd){
-                singleMessage("You cannot vote, you are on trial!", votedPlayer->sockd, -1, NULL);
-                continue;
-              }
-              if( strncmp(buffer, "/vote ", strlen("/vote ")) == 0) {
-                char* temp = parsePlayerCommand(buffer, "/vote ");
-                if( strcmp(temp, "guilty") == 0 ){
-                guiltyVotes++;
-                strcpy(vote, "guilty");
-                }
-                if( strcmp(temp, "innocent") == 0 ){
-                  innoVotes++;
-                  strcpy(vote, "innocent");
-                }
-                if( strcmp(temp, "abstain") == 0 ){
-                  abstVotes++;
-                  strcpy(vote, "abstain");
-                }
-                if( strlen(vote) > 1 ){
-                  sprintf(buffer, "[%d] %s ", n, allPlayers[n].name);
-                  strcat(buffer, "has voted ");
-                  strcat(buffer, vote);
                   sendMessage(buffer, allPlayers, n);
                 }
-              }
-              else{
-                sendMessage(buffer, allPlayers, n);
-              }
 
-              break;
+                break;
 
-            case GAMESTATE_LASTWORDS:
-              if(allPlayers[n].sockd != 0){
-                if(votedPlayer->sockd == allPlayers[n].sockd){
-                  sendMessage(buffer, allPlayers, n);
+              case GAMESTATE_LASTWORDS:
+                if(allPlayers[n].sockd != 0){
+                  if(votedPlayer->sockd == allPlayers[n].sockd){
+                    sendMessage(buffer, allPlayers, n);
+                  }
+                  else{
+                    singleMessage("Shh... Let the person on trial talk!", allPlayers[n].sockd, -1, NULL);
+                  }
                 }
-                else{
-                  singleMessage("Shh... Let the person on trial talk!", allPlayers[n].sockd, -1, NULL);
+
+                break;
+
+              case GAMESTATE_NIGHT:
+                if(allPlayers[n].sockd > 0 && allPlayers[n].team == T_MAFIA) {
+                  sendMessage(buffer, mafiaPlayers, allPlayers[n].role);
                 }
-              }
-
-              break;
-
-            case GAMESTATE_NIGHT:
-              if(allPlayers[n].sockd > 0 && allPlayers[n].team == T_MAFIA) {
-                sendMessage(buffer, mafiaPlayers, allPlayers[n].role);
-              }
-              break;
-
+                break;
+            }
           }
         }
 
@@ -742,26 +772,25 @@ int main() {
     if(phase == GAMESTATE_NIGHT + 1) phase = GAMESTATE_DISCUSSION;
   }
 
-//PAST HERE SOME GROUP OR TEAM HAS WON OR EVERYONE IS DEAD
+  //PAST HERE SOME GROUP OR TEAM HAS WON OR EVERYONE IS DEAD
 
+  for(int n = 0; n < MAX_PLAYERS; n++){
+    if(allPlayers[n].sockd < 0){
+      if(win == T_TOWN && allPlayers[n].team == T_TOWN){
+        allPlayers[n].hasWon = TRUE;
+      }
+      if(win == T_MAFIA && allPlayers[n].team == T_MAFIA){
+        allPlayers[n].hasWon = TRUE;
+      }
+    }
+  }
 
-
-  sendMessage("Somebody won here...", allPlayers, -1);
-
-
-
-
-//OK WIN MESSAGES ARE OVER LETS FREE UP SOME MEMORY
-
-  free(allPlayers);
-  free(townPlayers);
-  free(mafiaPlayers);
-  free(townPlayers);
-  free(alivePlayers);
-  free(deadPlayers);
-  free(votedPlayers);
-  free(buffer);
-
+  if(win == T_TOWN){
+    sendMessage("THE TOWN HAS WON!", allPlayers, -1);
+  }
+  if(win == T_MAFIA){
+    sendMessage("THE MAFIA HAS WON!", allPlayers, -1);
+  }
 
 
   return 0;
