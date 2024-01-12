@@ -615,10 +615,12 @@ int main() {
           if( strncmp(buffer, "/role ", strlen("/role ")) == 0) {
             printf("role sent\n");
             char* temp = parsePlayerCommand(buffer, "/role ");
+            printf("temp: %s\n", temp);
 
             if(allPlayers[n].team == T_MAFIA) {
               if(phase == GAMESTATE_NIGHT) {
 
+                printf("\n\nROLE ACTION!!\n\n");
                 int targetID = roleAction(alivePlayers, dyingPlayers, n, temp);
                 if(!targetID) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
                 else {
