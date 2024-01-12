@@ -371,7 +371,6 @@ int main() {
   int win = -1; //win will be equal to the team that wins so like T_MAFIA or T_TOWN
 
   printf("\n\nBEGINNING GAME!\n\n");
-
   while(win < 0){
     printf("new phase: %d\n", phase);
     if(phase == GAMESTATE_DISCUSSION) {
@@ -388,19 +387,16 @@ int main() {
             neutralAlive--;
           }
 
-
           sprintf(buffer, "%s died last night. Their role was %s.", deadPlayers[i].name, intToRole(deadPlayers[i].role, deadPlayers[i].team));
-          sendMessage(buffer, alivePlayers, -1);
+          sendMessage(buffer, allPlayers, -1);
           singleMessage("You have been killed! You can now talk with other dead players.", deadPlayers[i].sockd, -1, NULL);
           sleep(2);
         }
       }
-      free(dyingPlayers);
+      //free(dyingPlayers);
       dyingPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
     }
 
-    //timer
-    //write(mainToTimer[PIPE_WRITE], &phase, sizeof(int));
 
     //win logic
     if(townAlive == 0){
