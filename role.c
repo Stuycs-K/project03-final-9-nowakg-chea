@@ -54,7 +54,7 @@ void movePlayer(int sd, struct player* from, struct player* to) {
   from[i].sockd = 0;
 }
 
-//if action successful, returns 1
+//if action successful, returns id of target
 //if cant find player, returns 0
 //if sender is roleblocked, returns -1
 //if target defense is too high, returns -2
@@ -75,5 +75,5 @@ int roleAction(struct player* allPlayers, struct player* deadPlayers, int sender
     if(team == T_MAFIA) {
         movePlayer(allPlayers[targetID].sockd, allPlayers, deadPlayers);
     }
-    return 1;
+    return targetID;
 }
