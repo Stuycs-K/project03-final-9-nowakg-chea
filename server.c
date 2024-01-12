@@ -363,10 +363,12 @@ int main() {
     if(phase == GAMESTATE_DISCUSSION) {
       for(int i = 0; i < MAX_PLAYERS; ++i) {
         if(dyingPlayers[i].sockd > 0) {
+          allPlayers[i].alive = 0;
           deadPlayers[i] = dyingPlayers[i];
           sprintf(buffer, "%s died last night. Their role was %s.", deadPlayers[i].name, intToRole(deadPlayers[i].role, deadPlayers[i].team));
           sendMessage(buffer, allPlayers, -1);
           singleMessage("You have been killed! You can now talk with other dead players.", deadPlayers[i].sockd, -1, NULL);
+          --playerCount;
           sleep(2);
         }
       }
