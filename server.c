@@ -100,12 +100,14 @@ void timerSubserver(int toServer, int fromServer) {
   int phase = 0, time = 0, done = 0;
   while(!done) {
     read(fromServer, &phase, sizeof(int));
+    printf("phase (time): %d \n", phase);
     switch(phase) {
       case GAMESTATE_DAY: time = 3; break; //originally 15
       case GAMESTATE_DISCUSSION: time = 3; break; //originally 45
       case GAMESTATE_VOTING: time = 30; break;
       case GAMESTATE_DEFENSE: time = 20; break;
       case GAMESTATE_JUDGEMENT: time = 20; break;
+      case GAMESTATE_VOTE_COUNTING: time = 30; break;
       case GAMESTATE_LASTWORDS: time = 7; break;
       case GAMESTATE_KILL_VOTED: time = 5; break;
       case GAMESTATE_NIGHT: time = 37; break;
@@ -116,24 +118,6 @@ void timerSubserver(int toServer, int fromServer) {
     }
   }
 }
-
-// //if the destination player list is NULL, it removes the player from the game as if they never joined
-// //if shift is true, then the players
-// void movePlayer(int sd, struct player* from, struct player* to) {
-//   int i = -1;
-//   while(from[++i].sockd != sd)
-//     if(i >= MAX_PLAYERS) {
-//       printf("Missing sd in removePlayer\n");
-//       return;
-//     }
-//   //i is now the location of the target player
-//   if(to != NULL) {
-//     int j = -1;
-//     while(to[++j].sockd <= 0); //moves j to next open slot in array
-//     to[j] = from[i];
-//   }
-//   from[i].sockd = 0;
-// }
 
 //if there is delib in command increment the pointer to go past the delib
 char* parsePlayerCommand(char *command, char* delib){
@@ -231,7 +215,10 @@ int main() {
       read(newPlayer.sockd, buffer, BUFFER_SIZE);
       strcpy(newPlayer.name, buffer);
       newPlayer.alive = 1;
+
       newPlayer.votesForTrial = 0;
+      newPlayer.whatVote = VOTE_ABSTAIN;
+
       allPlayers[playerCount] = newPlayer;
       alivePlayers[playerCount] = newPlayer;
       ++playerCount;
@@ -388,7 +375,7 @@ int main() {
     }
 
     //timer
-    write(mainToTimer[PIPE_WRITE], &phase, sizeof(int));
+    //write(mainToTimer[PIPE_WRITE], &phase, sizeof(int));
 
     FD_ZERO(&read_fds);
 
@@ -407,15 +394,13 @@ int main() {
                   phase = GAMESTATE_NIGHT;
                   continue;
                 }
+                votingTries--;
                 votedPlayersList = votedPlayers;
                 //WILL NEED TO BE CHANGED TO ALIVE PLAYERS LATER BUT THIS IS JUST FOR TESTING PURPOSES
+                //resets amount of votes for this player to stand trial
                 for(int n = 0; n < MAX_PLAYERS; n++){
                   if(allPlayers[n].sockd > 0) {
-                    allPlayers[n].voted = FALSE;
                     allPlayers[n].votesForTrial = 0;
-                    guiltyVotes = 0;
-                    abstVotes = 0;
-                    innoVotes = 0;
                   }
                 }
                 sprintf(buffer,"It is time to vote! You have %d tries left to vote to kill a player. Use /vote player_name to vote to put a player on trial.",votingTries);
@@ -449,19 +434,32 @@ int main() {
 
 
 
-                votingTries--;
+
                 strcpy(buffer, votedPlayer->name);
                 printf("phase %d\n", phase);
                 strcat(buffer, " is on trial. They will now state their case as to why they are not guilty!");
                 sendMessage(buffer, allPlayers, -1);
-
                 break;
               case GAMESTATE_JUDGEMENT:
                 strcpy(buffer, votedPlayer->name);
                 strcat(buffer, " is on trial. Use /vote abstain, /vote guilty, and /vote innocent to vote whether they should be killed!");
                 sendMessage(buffer, allPlayers, -1);
                 break;
-              case GAMESTATE_LASTWORDS:
+              case GAMESTATE_VOTE_COUNTING:
+              //count the votes of all players
+                for(int n = 0; n < MAX_PLAYERS; n++){
+                  if(allPlayers[n].sockd > 0){
+                    if(allPlayers[n].whatVote == VOTE_ABSTAIN){
+                      abstVotes++;
+                    }
+                    if(allPlayers[n].whatVote == VOTE_INNOCENT){
+                      innoVotes++;
+                    }
+                    if(allPlayers[n].whatVote == VOTE_GUILTY){
+                      guiltyVotes++;
+                    }
+                  }
+                }
                 if(guiltyVotes <= innoVotes){
                   sprintf(buffer, " has not enough votes to be killed. You now have %d tries left to vote a player.", votingTries );
                   sendMessage(buffer, allPlayers, -1);
@@ -469,34 +467,50 @@ int main() {
                   votedPlayer = NULL;
                   continue;
                 }
+                abstVotes = 0;
+                innoVotes = 0;
+                guiltyVotes = 0;
 
+                //reset player's votes
+                for(int n = 0; n < MAX_PLAYERS; n++){
+                  if(allPlayers[n].sockd > 0){
+                    allPlayers[n].whatVote = VOTE_ABSTAIN;
+                  }
+                }
+                break;
+
+              case GAMESTATE_LASTWORDS:
                 strcpy(buffer, votedPlayer->name);
                 strcat(buffer, " will now say their last words.");
                 sendMessage(buffer, allPlayers, -1);
                 break;
+
               case GAMESTATE_KILL_VOTED:
                 if(votedPlayer != NULL && votedPlayer->sockd != 0){
                   sprintf(buffer, "%s has been killed. (insert dying animation)", votedPlayer->name );
                   sendMessage(buffer, allPlayers, -1);
 
                   //KILL THE GUILTY PLAYER!!!
+                  movePlayer(votedPlayer->sockd, deadPlayers, NULL);
 
                   votedPlayer = NULL;
                   phase = GAMESTATE_NIGHT;
                   continue;
                 }
-
                 break;
+
               case GAMESTATE_NIGHT:
                 if(votedPlayer != NULL){
                   //kill this voted Player!!!
                 }
-
                 sendMessage("Talk to other mafia players and conspire to eliminate the town! Use /role target to do your role's action. If you have a role that requires you to target yourself do /role your-name.", mafiaPlayers, -1);
                 sendMessage("Good luck! Use /role target to do your role's action. If you have a role that requires you to target yourself do /role your-name.", townPlayers, -1);
                 sendMessage("Good luck! Use /role target to do your role's action. If you have a role that requires you to target yourself do /role your-name.", neutralPlayers, -1);
                 break;
             }
+
+    //timer
+    write(mainToTimer[PIPE_WRITE], &phase, sizeof(int));
 
     while(!nextPhase) {
       FD_ZERO(&read_fds);
@@ -529,7 +543,7 @@ int main() {
       }
 
       for(int n = 0; n < MAX_PLAYERS; n++){
-        if(allPlayers[n].sockd > 0) printf("%d %d %d\n", allPlayers[n].sockd, alivePlayers[n].sockd, deadPlayers[n].sockd);
+        //if(allPlayers[n].sockd > 0) printf("%d %d %d\n", allPlayers[n].sockd, alivePlayers[n].sockd, deadPlayers[n].sockd);
         if(alivePlayers[n].sockd > 0 && FD_ISSET(alivePlayers[n].sockd, &read_fds)){
           int bytes = read(allPlayers[n].sockd, buffer, BUFFER_SIZE);
           err(bytes, "bad client read in game loop");
@@ -614,9 +628,12 @@ int main() {
                     votedPlayersList++;
                     allPlayers[i].votesForTrial++;
                     sprintf(buffer, "[%d] %s has voted", n, allPlayers[n].name);
-                    sendMessage(buffer, allPlayers, -1);
+                    sendMessage(buffer, allPlayers, n);
                   }
                 }
+              }
+              else{
+                sendMessage(buffer, allPlayers, n);
               }
 
 
@@ -658,7 +675,7 @@ int main() {
                   sprintf(buffer, "[%d] %s ", n, allPlayers[n].name);
                   strcat(buffer, "has voted ");
                   strcat(buffer, vote);
-                  sendMessage(buffer, allPlayers, -1);
+                  sendMessage(buffer, allPlayers, n);
                 }
               }
               else{

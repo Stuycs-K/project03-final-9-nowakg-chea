@@ -24,6 +24,10 @@
 #define PLAYER_ALIVE 1
 #define PLAYER_DEAD 0
 
+#define VOTE_ABSTAIN 0
+#define VOTE_GUILTY 1
+#define VOTE_INNOCENT 2
+
 #define TRUE 1
 #define FALSE 0
 
@@ -32,15 +36,16 @@
 #define GAMESTATE_VOTING 2
 #define GAMESTATE_DEFENSE 3
 #define GAMESTATE_JUDGEMENT 4
-#define GAMESTATE_LASTWORDS 5
-#define GAMESTATE_KILL_VOTED 6
-#define GAMESTATE_NIGHT 7
+#define GAMESTATE_VOTE_COUNTING 5
+#define GAMESTATE_LASTWORDS 6
+#define GAMESTATE_KILL_VOTED 7
+#define GAMESTATE_NIGHT 8
 
 #define PIPE_READ 0
 #define PIPE_WRITE 1
 
 
-struct player {int sockd; char name[16]; int alive; int votesForTrial; int voted; int team; int role;};
+struct player {int sockd; char name[16]; int alive; int votesForTrial; int whatVote; int team; int role;};
 void err(int i, char*message);
 void movePlayer(int sd, struct player* from, struct player* to);
 //void serverStart();
