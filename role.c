@@ -61,10 +61,12 @@ void movePlayer(int sd, struct player* from, struct player* to) {
 int roleAction(struct player* allPlayers, struct player* deadPlayers, int senderID, char* target) {
     int targetID = -1;
     for(int i = 0; i < MAX_PLAYERS; ++i) {
-        printf("%s %s\n", allPlayers[i].name, target);
-        if(strcmp(allPlayers[i].name, target) == 0) {
-            targetID = i;
-            break;
+        if(allPlayers[i].sockd > 0) {
+            printf("roleAction %s %s\n", allPlayers[i].name, target);
+            if(strcmp(allPlayers[i].name, target) == 0) {
+                targetID = i;
+                break;
+            }
         }
     }
     if(targetID == -1) return 0;

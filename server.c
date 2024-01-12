@@ -396,26 +396,23 @@ int main() {
       //free(dyingPlayers);
       dyingPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
     }
-
-
+    printf("yo\n");
     //win logic
-    if(townAlive == 0){
-      win = T_TOWN;
-      break;
-    }
     if(mafiaAlive == 0){
-      win = T_MAFIA;
-      break;
+      win = T_TOWN;
     }
+    if(townAlive == 0){
+      win = T_MAFIA;
+    }
+    /*
     if(neutralAlive == 0){
       win = T_NEUTRAL;
-      break;
     }
-
+    */
 
     FD_ZERO(&read_fds);
 
-
+    printf("yo\n");
     switch(phase) {
               case GAMESTATE_DAY:
                 sendMessage("Welcome to the Town of C-lem. If you are on the town team, you must vote to kill all the mafia members.  If you are the mafia you must kill all the town. If you are a neutral player you can win with either town or mafia but you have some other way to win. Have fun!", allPlayers, -1);
@@ -790,23 +787,6 @@ int main() {
   if(win == T_MAFIA){
     sendMessage("THE MAFIA HAS WON!", allPlayers, -1);
   }
-
-
-
-
-
-//OK WIN MESSAGES ARE OVER LETS FREE UP SOME MEMORY
-
-  free(allPlayers);
-  free(townPlayers);
-  free(mafiaPlayers);
-  free(townPlayers);
-  free(alivePlayers);
-  free(deadPlayers);
-  free(dyingPlayers);
-  free(votedPlayers);
-  free(buffer);
-
 
 
   return 0;
