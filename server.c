@@ -256,12 +256,20 @@ int main() {
   //start giving roles to each player
   for(int i = 0; i < playerCount; ++i) {
 
+    // if(i == 0) {
+    //   allPlayers[i].team = T_NEUTRAL;
+    //   allPlayers[i].role = R_EXECUTIONER;
+    //   alivePlayers[i].team = T_NEUTRAL;
+    //   alivePlayers[i].role = R_EXECUTIONER;
+    //   neutralPlayers[R_EXECUTIONER] = allPlayers[i];
+    //   continue;
+    // }
     if(i == 0) {
-      allPlayers[i].team = T_NEUTRAL;
-      allPlayers[i].role = R_EXECUTIONER;
-      alivePlayers[i].team = T_NEUTRAL;
-      alivePlayers[i].role = R_EXECUTIONER;
-      neutralPlayers[R_EXECUTIONER] = allPlayers[i];
+      allPlayers[i].team = T_TOWN;
+      allPlayers[i].role = R_MAYOR;
+      alivePlayers[i].team = T_TOWN;
+      alivePlayers[i].role = R_MAYOR;
+      townPlayers[R_MAYOR] = allPlayers[i];
       continue;
     }
 
@@ -476,6 +484,8 @@ int main() {
   struct player* votedPlayer = NULL;
   int guiltyVotes = 0, innoVotes = 0, abstVotes = 0; //will be used in the GAMESTATE_JUDGEMENT phase
 
+  int mayorReveal = FALSE;
+  //for mayor later
 
   int win = -1; //win will be equal to the team that wins so like T_MAFIA or T_TOWN
 
@@ -903,6 +913,23 @@ int main() {
               else singleMessage("You can only use your role ability during the night.", allPlayers[n].sockd, -1, NULL);
             }
             else if(allPlayers[n].team == T_TOWN){
+              if(allPlayers[n].role == R_MAYOR){
+                if(phase == GAMESTATE_NIGHT || phase == GAMESTATE_RUN_NIGHT){
+                  singleMessage("You must wait until day time in order to reveal to the town that you are the mayor.", allPlayers[n].sockd, -1, NULL);
+                  continue;
+                }
+                if(strcmp(temp, allPlayers[n].name) != 0){
+                  singleMessage("Are you sure you want to reveal yourself as mayor? If so, your votes will be worth 3x as much. Type /role your-name to reveal yourself.", allPlayers[n].sockd, -1, NULL);
+                  continue;
+                }
+                else{
+                  sprintf(buffer, "Attention! Mayor %s has come out of hiding. Their votes are now worth 3x as much.", allPlayers[n].name);
+                  sendMessage(buffer, allPlayers, -1);
+                  mayorReveal = TRUE;
+                }
+                continue;
+              }
+
               int targetID = roleAction(allPlayers, n, temp);
               if(targetID == -1) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
               else if(allPlayers[targetID].alive == 0) singleMessage("Player is dead", allPlayers[n].sockd, -1, NULL);
@@ -942,9 +969,13 @@ int main() {
                   char* temp = parsePlayerCommand(buffer, "/vote ");
                     if( allPlayers[i].sockd > 0 && strcmp(temp, allPlayers[i].name) == 0 ){
                       *votedPlayersList = allPlayers[i];
+                      if(allPlayers[n].role == R_MAYOR && mayorReveal == TRUE){
+                        allPlayers[i].votesForTrial++;
+                        allPlayers[i].votesForTrial++;
+                      }
                       votedPlayersList++;
                       allPlayers[i].votesForTrial++;
-                      sprintf(buffer, "[%d] %s has voted", n, allPlayers[n].name);
+                      sprintf(buffer, "has voted for %s (%d votes for trial)", allPlayers[i].name, allPlayers[i].votesForTrial);
                       sendMessage(buffer, allPlayers, n);
                     }
                   }
@@ -979,20 +1010,33 @@ int main() {
                   char* temp = parsePlayerCommand(buffer, "/vote ");
                   if( strcmp(temp, "guilty") == 0 ){
                   guiltyVotes++;
+                  if(allPlayers[n].role == R_MAYOR && mayorReveal == TRUE){
+                    guiltyVotes = guiltyVotes + 2;
+                  }
                   strcpy(vote, "guilty");
                   }
                   if( strcmp(temp, "innocent") == 0 ){
                     innoVotes++;
+                    if(allPlayers[n].role == R_MAYOR && mayorReveal == TRUE){
+                      innoVotes = innoVotes + 2;
+                    }
                     strcpy(vote, "innocent");
                   }
                   if( strcmp(temp, "abstain") == 0 ){
                     abstVotes++;
+                    if(allPlayers[n].role == R_MAYOR && mayorReveal == TRUE){
+                      abstVotes = abstVotes + 2;
+                    }
                     strcpy(vote, "abstain");
                   }
                   if( strlen(vote) > 1 ){
-                    sprintf(buffer, "[%d] %s ", n, allPlayers[n].name);
+                  //  sprintf(buffer, "[%d] %s ", n, allPlayers[n].name);
+                    char voteAmount[BUFFER_SIZE] = "";
+                    sprintf(voteAmount, " (guilty: %d, innocent: %d, abstain: %d) ", guiltyVotes, innoVotes, abstVotes);
+
                     strcat(buffer, "has voted ");
                     strcat(buffer, vote);
+                    strcat(buffer, voteAmount);
                     sendMessage(buffer, allPlayers, n);
                   }
                 }
