@@ -255,6 +255,16 @@ int main() {
   }
   //start giving roles to each player
   for(int i = 0; i < playerCount; ++i) {
+
+    if(i == 0) {
+      allPlayers[i].team = T_NEUTRAL;
+      allPlayers[i].role = R_EXECUTIONER;
+      alivePlayers[i].team = T_NEUTRAL;
+      alivePlayers[i].role = R_EXECUTIONER;
+      neutralPlayers[R_EXECUTIONER] = allPlayers[i];
+      continue;
+    }
+
     //decide the team
     //printf("Player: %d\n", i);
     int team = -1, role = -1;
@@ -327,7 +337,6 @@ int main() {
     if(team == T_MAFIA) mafiaPlayers[role] = allPlayers[i];
     if(team == T_NEUTRAL) neutralPlayers[role] = allPlayers[i];
   }
-
 
   sendMessage("Game: Your role and team is...", allPlayers, -1);
 
@@ -421,11 +430,21 @@ int main() {
     }
   }
 
-  sendMessage("Game: Hit enter to start!", allPlayers, -1);
-
-
-
-
+  int executionerTarget = -1;
+  if(neutralPlayers[R_EXECUTIONER].sockd > 0) {
+    int r = open("/dev/random", O_RDONLY);
+    int target;
+    read(r, &target, sizeof(int));
+    close(r);
+    if(target < 0) target *= -1;
+    target %= playerCount;
+    if(allPlayers[target].team == T_NEUTRAL && allPlayers[target].role == R_EXECUTIONER) --target;
+    if(target == -1) target += 2; //if executioner is p0, make it p1
+    printf("Executioner target: %d\n", target);
+    sprintf(buffer, "Your target: [%d] %s", target, allPlayers[target].name);
+    singleMessage(buffer, neutralPlayers[R_EXECUTIONER].sockd, -1, NULL);
+    executionerTarget = target;
+  }
 
   //BEGIN THE GAME
 
@@ -604,6 +623,12 @@ int main() {
                   if(votedPlayer->role == R_JESTER){
                     sendMessage("Jester wins!", allPlayers, -1);
                     singleMessage("Congratulations! You won.", votedPlayer->sockd, -1, NULL);
+                    return 0;
+                  }
+
+                  if(votedPlayer->sockd == allPlayers[executionerTarget].sockd) {
+                    sendMessage("Executioner wins!", allPlayers, -1);
+                    singleMessage("Congratulations! You won.", neutralPlayers[R_EXECUTIONER].sockd, -1, NULL);
                     return 0;
                   }
 
