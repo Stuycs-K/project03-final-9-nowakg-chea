@@ -442,6 +442,14 @@ int main() {
     }
   }
 
+  sendMessage("Your team:", mafiaPlayers, -1);
+  for(int i = 0; i < MAX_PLAYERS; ++i) {
+    if(mafiaPlayers[i].sockd > 0) {
+      sprintf(buffer, "[%d] %s - %s", i, mafiaPlayers[i].name, intToRole(mafiaPlayers[i].role, mafiaPlayers[i].team));
+      sendMessage(buffer, mafiaPlayers, -1);
+    }
+  }
+
   int executionerTarget = -1;
   if(neutralPlayers[R_EXECUTIONER].sockd > 0) {
     int r = open("/dev/random", O_RDONLY);
