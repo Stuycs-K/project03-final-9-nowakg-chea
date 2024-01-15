@@ -107,7 +107,7 @@ void timerSubserver(int toServer, int fromServer) {
       case GAMESTATE_VOTING: time = 30; break;
       case GAMESTATE_DEFENSE: time = 20; break;
       case GAMESTATE_JUDGEMENT: time = 20; break;
-      case GAMESTATE_VOTE_COUNTING: time = 30; break;
+      case GAMESTATE_VOTE_COUNTING: time = 1; break;
       case GAMESTATE_LASTWORDS: time = 7; break;
       case GAMESTATE_KILL_VOTED: time = 5; break;
       case GAMESTATE_NIGHT: time = 37; break;
@@ -215,7 +215,7 @@ int main() {
 
       read(newPlayer.sockd, buffer, BUFFER_SIZE);
       strcpy(newPlayer.name, buffer);
-      newPlayer.alive = 1;
+      newPlayer.alive = TRUE;
 
       newPlayer.votesForTrial = 0;
       newPlayer.whatVote = VOTE_ABSTAIN;
@@ -479,7 +479,7 @@ int main() {
         //move dying players to dead players and reset everyone's addedAttack and addedDefense
       for(int i = 0; i < MAX_PLAYERS; ++i) {
         if(dyingPlayers[i].sockd > 0) {
-          allPlayers[i].alive = 0;
+          allPlayers[i].alive = FALSE;
           deadPlayers[i] = dyingPlayers[i];
           if(deadPlayers[i].team == T_TOWN && deadPlayers[i].alive == FALSE){
             townAlive--;
@@ -619,6 +619,8 @@ int main() {
                     allPlayers[n].whatVote = VOTE_ABSTAIN;
                   }
                 }
+                phase = GAMESTATE_LASTWORDS;
+                continue;
                 break;
 
               case GAMESTATE_LASTWORDS:
@@ -633,19 +635,18 @@ int main() {
                   sendMessage(buffer, allPlayers, -1);
 
                   if(votedPlayer->role == R_JESTER){
-                    sendMessage("Jester wins!", allPlayers, -1);
-                    singleMessage("Congratulations! You won.", votedPlayer->sockd, -1, NULL);
-                    return 0;
+                    singleMessage("Congratulations! You won. Stick around and you will be able to kill somebody at night!", votedPlayer->sockd, -1, NULL);
                   }
 
                   if(votedPlayer->sockd == allPlayers[executionerTarget].sockd) {
-                    sendMessage("Executioner wins!", allPlayers, -1);
-                    singleMessage("Congratulations! You won.", neutralPlayers[R_EXECUTIONER].sockd, -1, NULL);
-                    return 0;
+                    singleMessage("Congratulations! You won. Stick around and you will be able to side with either town or mafia but you win either way.", neutralPlayers[R_EXECUTIONER].sockd, -1, NULL);
                   }
 
                   //KILL THE GUILTY PLAYER!!!
-                  movePlayer(votedPlayer->sockd, deadPlayers, NULL);
+                  movePlayer(votedPlayer->sockd, alivePlayers, deadPlayers);
+                  votedPlayer->alive = FALSE;
+                  singleMessage("You have been killed! You can now talk with other dead players.", votedPlayer->sockd, -1, NULL);
+                  --playerCount;
 
                   votedPlayer = NULL;
                   phase = GAMESTATE_NIGHT;
@@ -738,7 +739,7 @@ int main() {
 
                         case R_VIGILANTE:
                           if(allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].defense && allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].addedDefense){
-                            //kill them
+                            movePlayer(allPlayers[n].sockd, dyingPlayers, NULL);
                             sprintf(visitorRelay, "You killed %s!", allPlayers[n].name);
                           }
                           else{
@@ -752,7 +753,7 @@ int main() {
 
                           case R_GODFATHER:
                             if(allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].defense && allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].addedDefense){
-                              //kill them
+                              movePlayer(allPlayers[n].sockd, dyingPlayers, NULL);
                               sprintf(visitorRelay, "You killed %s!", allPlayers[n].name);
                             }
                             else{
@@ -761,7 +762,7 @@ int main() {
                             break;
                           case R_MAFIOSO:
                             if(allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].defense && allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].addedDefense){
-                              //kill them
+                              movePlayer(allPlayers[n].sockd, dyingPlayers, NULL);
                               sprintf(visitorRelay, "You killed %s!", allPlayers[n].name);
                             }
                             else{
@@ -911,7 +912,7 @@ int main() {
           else {
 
             //HANDLE MESSAGES
-            
+
             switch(phase){
               case GAMESTATE_DAY:
                 sendMessage(buffer, allPlayers, n);
@@ -923,11 +924,10 @@ int main() {
 
               case GAMESTATE_VOTING:
                 //find the player struct based on their name that a player voted for
-                if( strncmp(buffer, "/vote ", strlen("/vote ")) == 0) {
-                  buffer = parsePlayerCommand(buffer, "/vote ");
+                if(strncmp(buffer, "/vote ", strlen("/vote ")) == 0) {
                   for(int i = 0; i < MAX_PLAYERS; i++){
-                  //GOTTA CHANGE TO ALIVE PLAYERS CUZ YOU CANT VOTE A DEAD PLAYER BUT THIS IS FINE FOR NOW
-                    if( allPlayers[i].sockd > 0 && strcmp(buffer, allPlayers[i].name) == 0 ){
+                  char* temp = parsePlayerCommand(buffer, "/vote ");
+                    if( allPlayers[i].sockd > 0 && strcmp(temp, allPlayers[i].name) == 0 ){
                       *votedPlayersList = allPlayers[i];
                       votedPlayersList++;
                       allPlayers[i].votesForTrial++;
@@ -946,6 +946,7 @@ int main() {
               case GAMESTATE_DEFENSE:
                 if(allPlayers[n].sockd != 0){
                   if(votedPlayer->sockd == allPlayers[n].sockd){
+                    printf("sock %d\n", allPlayers[n].sockd);
                     sendMessage(buffer, allPlayers, n);
                   }
                   else{
