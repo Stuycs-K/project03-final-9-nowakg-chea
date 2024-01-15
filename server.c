@@ -828,7 +828,12 @@ int main() {
           nextPhase = 1;
           continue;
         }
-        if(time == 120 || time == 60 || time == 30 || time == 15 || time == 10 || time == 5 || time == 4 || time == 3 || time == 2|| time == 1) printf("%ds left\n", time);
+        if(time == 120 || time == 60 || time == 30 || time == 10 || time == 3 || time == 2|| time == 1) {
+          char timeMsg[BUFFER_SIZE];
+          sprintf(timeMsg, "%ds left", time);
+          printf("%s", timeMsg);
+          sendMessage(timeMsg, allPlayers, -1);
+        }
         continue;
       }
 
