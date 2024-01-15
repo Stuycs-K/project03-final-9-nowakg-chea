@@ -51,7 +51,10 @@ fixing voting timer bug
 making priority and role system
 
 ### 2024-01-15 - Brief description
-Expanded description including how much time was spent on task.
+worked on mayor (and revealing)
+fixed voting bug that allowed people to vote a bunch of times for the same person
+finished veteran, vigilante
+worked on medium 
 
 
 ## Andrew
