@@ -50,6 +50,7 @@ struct player {
   int sockd; char name[16]; int alive; int votesForTrial; int whatVote; int votedFor; int team; int role; int hasWon;
   int attack; int defense; int rolePriority; int addedAttack; int addedDefense;
   int visitorsID[MAX_PLAYERS]; int visiting;
+  int veteranAlert;
 };
 void err(int i, char*message);
 void movePlayer(int sd, struct player* from, struct player* to);

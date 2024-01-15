@@ -267,10 +267,10 @@ int main() {
     // }
     if(i == 0) {
       allPlayers[i].team = T_TOWN;
-      allPlayers[i].role = R_MAYOR;
+      allPlayers[i].role = R_VETERAN;
       alivePlayers[i].team = T_TOWN;
-      alivePlayers[i].role = R_MAYOR;
-      townPlayers[R_MAYOR] = allPlayers[i];
+      alivePlayers[i].role = R_VETERAN;
+      townPlayers[R_VETERAN] = allPlayers[i];
       continue;
     }
 
@@ -382,6 +382,7 @@ int main() {
         case R_VETERAN:
           allPlayers[i].attack = POWERFUL_ATTACK;
           allPlayers[i].rolePriority = 1;
+          allPlayers[i].veteranAlert = 3;
           break;
         case R_MEDIUM:
           mediumSD = allPlayers[i].sockd; //for later that medium can talk to dead at night
@@ -682,6 +683,7 @@ int main() {
                   }
 
                   //KILL THE GUILTY PLAYER!!!
+                  //KILL PLAYER HERE
                   movePlayer(votedPlayer->sockd, alivePlayers, deadPlayers);
                   votedPlayer->alive = FALSE;
                   singleMessage("You have been killed! You can now talk with other dead players.", votedPlayer->sockd, -1, NULL);
@@ -737,6 +739,7 @@ int main() {
                     // allPlayers[allPlayers[n].visitorsID[i]] is visitor
                     char visitorRelay[BUFFER_SIZE] = "";
                     if(allPlayers[allPlayers[n].visitorsID[i]].team == T_TOWN){
+
                       switch ( allPlayers[allPlayers[n].visitorsID[i]].role ){
                         case R_DOCTOR:
                           allPlayers[n].addedDefense = POWERFUL_DEFENSE;
@@ -778,11 +781,19 @@ int main() {
 
                         case R_VIGILANTE:
                           if(allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].defense && allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].addedDefense){
-                            movePlayer(allPlayers[n].sockd, dyingPlayers, NULL);
+                            //KILL PLAYER HERE
+                            movePlayer(allPlayers[n].sockd, alivePlayers, deadPlayers);
                             sprintf(visitorRelay, "You killed %s!", allPlayers[n].name);
+
+                            if(allPlayers[n].team == T_TOWN){
+                              //KILL PLAYER HERE
+                              movePlayer(allPlayers[n].visitorsID[i], alivePlayers, deadPlayers);
+                              strcat(visitorRelay, "You killed yourself out of regret for killing a fellow town member! You are dead.");
+                            }
+
                           }
                           else{
-                            sprintf(visitorRelay, "You tried to kill %s but their defence was too high! your attack %d, theikr defense: %d, their added defense: %d", allPlayers[n].name, allPlayers[allPlayers[n].visitorsID[i]].attack , allPlayers[n].defense, allPlayers[n].addedDefense  );
+                            sprintf(visitorRelay, "You tried to kill %s but their defence was too high! your attack %d, their defense: %d, their added defense: %d", allPlayers[n].name, allPlayers[allPlayers[n].visitorsID[i]].attack , allPlayers[n].defense, allPlayers[n].addedDefense  );
                           }
                           break;
                         }
@@ -792,6 +803,7 @@ int main() {
 
                           case R_GODFATHER:
                             if(allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].defense && allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].addedDefense){
+                              //KILL PLAYER HERE
                               movePlayer(allPlayers[n].sockd, dyingPlayers, NULL);
                               sprintf(visitorRelay, "You killed %s!", allPlayers[n].name);
                             }
@@ -801,6 +813,7 @@ int main() {
                             break;
                           case R_MAFIOSO:
                             if(allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].defense && allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].addedDefense){
+                              //KILL PLAYER HERE
                               movePlayer(allPlayers[n].sockd, dyingPlayers, NULL);
                               sprintf(visitorRelay, "You killed %s!", allPlayers[n].name);
                             }
@@ -817,7 +830,20 @@ int main() {
                         }
                       }
 
-
+                      if(allPlayers[n].role == R_VETERAN && allPlayers[n].veteranAlert == TRUE){
+                        if(allPlayers[n].attack > allPlayers[allPlayers[n].visitorsID[i]].defense && allPlayers[n].attack > allPlayers[allPlayers[n].visitorsID[i]].addedDefense){
+                          //KILL PLAYER HERE
+                          movePlayer(allPlayers[allPlayers[n].visitorsID[i]].sockd, alivePlayers, deadPlayers);
+                          allPlayers[allPlayers[n].visitorsID[i]].alive = FALSE;
+                          char vetMessage[BUFFER_SIZE];
+                          sprintf(vetMessage, "You killed %s while alert.", allPlayers[allPlayers[n].visitorsID[i]].name);
+                          singleMessage(vetMessage, allPlayers[n].sockd, -1, NULL);
+                          sprintf(visitorRelay, "You were killed by an alert veteran!", allPlayers[n].name);
+                        }
+                        else{
+                            sprintf(visitorRelay, "You tried to kill %s but their defence was too high! your attack %d, their defense: %d, their added defense: %d", allPlayers[n].name, allPlayers[allPlayers[n].visitorsID[i]].attack , allPlayers[n].defense, allPlayers[n].addedDefense  );
+                        }
+                      }
                       singleMessage(visitorRelay, allPlayers[allPlayers[n].visitorsID[i]].sockd, -1, NULL);
                     }
                   }
@@ -947,6 +973,34 @@ int main() {
                   sprintf(buffer, "Attention! Mayor %s has come out of hiding. Their votes are now worth 3x as much.", allPlayers[n].name);
                   sendMessage(buffer, allPlayers, -1);
                   mayorReveal = TRUE;
+                }
+                continue;
+              }
+
+              if(allPlayers[n].role == R_VETERAN){
+                if(phase == GAMESTATE_NIGHT || phase == GAMESTATE_RUN_NIGHT){
+                  if(allPlayers[n].veteranAlert == TRUE){
+                    singleMessage("You are alert for enemies that may try to kill you.", allPlayers[n].sockd, -1, NULL);
+                  }
+                  else{
+                    singleMessage("You are not alert. You are sleeping. You can only choose do become alert during the day.", allPlayers[n].sockd, -1, NULL);
+                  }
+                  continue;
+                }
+                if(strcmp(temp, allPlayers[n].name) != 0){
+                  singleMessage("Are you sure you want to go on alert? If so, type /role your-name to go on alert.", allPlayers[n].sockd, -1, NULL);
+                  continue;
+                }
+                else{
+                  if(allPlayers[n].veteranAlert == TRUE){
+                    singleMessage("You have decided to NOT go on alert.", allPlayers[n].sockd, -1, NULL);
+                    allPlayers[n].veteranAlert = FALSE;
+                  }
+                  else{
+                    singleMessage("You have decided to go on alert.", allPlayers[n].sockd, -1, NULL);
+                    allPlayers[n].veteranAlert = TRUE;
+                  }
+
                 }
                 continue;
               }
