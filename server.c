@@ -884,7 +884,9 @@ int main() {
             }
           }
           else {
-            //handle messages
+
+            //HANDLE MESSAGES
+            
             switch(phase){
               case GAMESTATE_DAY:
                 sendMessage(buffer, allPlayers, n);
