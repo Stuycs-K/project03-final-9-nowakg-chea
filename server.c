@@ -218,6 +218,7 @@ int main() {
       newPlayer.alive = TRUE;
 
       newPlayer.votesForTrial = 0;
+      newPlayer.votedFor = -1;
       newPlayer.whatVote = VOTE_ABSTAIN;
 
       allPlayers[playerCount] = newPlayer;
@@ -570,6 +571,17 @@ int main() {
                  //WILL NEED TO CHANGE TO ALIVE PLAYRES LATER BUT THIS IS FINE FORE NOW
                 sendMessage("Counting votes...", allPlayers, -1);
                 int highestVote = 0;
+
+                for(int n = 0; n < MAX_PLAYERS; n++){
+                  if(allPlayers[n].sockd > 0){
+                    allPlayers[allPlayers[n].votedFor].votesForTrial++;
+                    if(allPlayers[n].role == R_MAYOR && mayorReveal == TRUE){
+                      allPlayers[allPlayers[n].votedFor].votesForTrial += 2;
+                    }
+                  }
+                }
+
+
                 for (int n = 0; n < MAX_PLAYERS; n++){
                   if(allPlayers[n].sockd > 0 && allPlayers[n].votesForTrial > highestVote){
                     highestVote = allPlayers[n].votesForTrial;
@@ -611,12 +623,21 @@ int main() {
                   if(allPlayers[n].sockd > 0){
                     if(allPlayers[n].whatVote == VOTE_ABSTAIN){
                       abstVotes++;
+                      if(allPlayers[n].role == R_MAYOR && mayorReveal == TRUE){
+                        abstVotes = abstVotes + 2;
+                      }
                     }
                     if(allPlayers[n].whatVote == VOTE_INNOCENT){
                       innoVotes++;
+                      if(allPlayers[n].role == R_MAYOR && mayorReveal == TRUE){
+                        innoVotes = innoVotes + 2;
+                      }
                     }
                     if(allPlayers[n].whatVote == VOTE_GUILTY){
                       guiltyVotes++;
+                      if(allPlayers[n].role == R_MAYOR && mayorReveal == TRUE){
+                        guiltyVotes = guiltyVotes + 2;
+                      }
                     }
                   }
                 }
@@ -968,15 +989,14 @@ int main() {
                   for(int i = 0; i < MAX_PLAYERS; i++){
                   char* temp = parsePlayerCommand(buffer, "/vote ");
                     if( allPlayers[i].sockd > 0 && strcmp(temp, allPlayers[i].name) == 0 ){
+
                       *votedPlayersList = allPlayers[i];
-                      if(allPlayers[n].role == R_MAYOR && mayorReveal == TRUE){
-                        allPlayers[i].votesForTrial++;
-                        allPlayers[i].votesForTrial++;
-                      }
                       votedPlayersList++;
-                      allPlayers[i].votesForTrial++;
-                      sprintf(buffer, "has voted for %s (%d votes for trial)", allPlayers[i].name, allPlayers[i].votesForTrial);
-                      sendMessage(buffer, allPlayers, n);
+
+                      allPlayers[n].votedFor = i;
+                      char votingMessage[BUFFER_SIZE] = "";
+                      sprintf(votingMessage, "[%d] %s has voted for %s", n, allPlayers[n].name, allPlayers[i].name);
+                      sendMessage(votingMessage, allPlayers, -1);
                     }
                   }
                 }
@@ -1009,35 +1029,24 @@ int main() {
                 if( strncmp(buffer, "/vote ", strlen("/vote ")) == 0) {
                   char* temp = parsePlayerCommand(buffer, "/vote ");
                   if( strcmp(temp, "guilty") == 0 ){
-                  guiltyVotes++;
-                  if(allPlayers[n].role == R_MAYOR && mayorReveal == TRUE){
-                    guiltyVotes = guiltyVotes + 2;
-                  }
-                  strcpy(vote, "guilty");
+                    strcpy(vote, "guilty");
+                    allPlayers[n].whatVote = VOTE_GUILTY;
                   }
                   if( strcmp(temp, "innocent") == 0 ){
-                    innoVotes++;
-                    if(allPlayers[n].role == R_MAYOR && mayorReveal == TRUE){
-                      innoVotes = innoVotes + 2;
-                    }
                     strcpy(vote, "innocent");
+                    allPlayers[n].whatVote = VOTE_INNOCENT;
                   }
                   if( strcmp(temp, "abstain") == 0 ){
-                    abstVotes++;
-                    if(allPlayers[n].role == R_MAYOR && mayorReveal == TRUE){
-                      abstVotes = abstVotes + 2;
-                    }
                     strcpy(vote, "abstain");
+                    allPlayers[n].whatVote = VOTE_ABSTAIN;
                   }
                   if( strlen(vote) > 1 ){
-                  //  sprintf(buffer, "[%d] %s ", n, allPlayers[n].name);
-                    char voteAmount[BUFFER_SIZE] = "";
-                    sprintf(voteAmount, " (guilty: %d, innocent: %d, abstain: %d) ", guiltyVotes, innoVotes, abstVotes);
+                    char votedMessage[BUFFER_SIZE];
+                    sprintf(votedMessage, "[%d] %s ", n, allPlayers[n].name);
 
-                    strcat(buffer, "has voted ");
-                    strcat(buffer, vote);
-                    strcat(buffer, voteAmount);
-                    sendMessage(buffer, allPlayers, n);
+                    strcat(votedMessage, "has voted ");
+                    strcat(votedMessage, vote);
+                    sendMessage(votedMessage, allPlayers, -1);
                   }
                 }
                 else{
