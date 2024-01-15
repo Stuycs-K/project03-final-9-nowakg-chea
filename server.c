@@ -84,15 +84,15 @@ void sendMessage(char* message, struct player allPlayers[], int id){
 
 //takes SOCKET DESCRIPTOR of target and ID NUMBER of sender
 void singleMessage(char* message, int targetSD, int senderID, char* senderName) {
-  char toClient[BUFFER_SIZE] = "[";
+  char toClient[BUFFER_SIZE] = "\033[90mWhisper from [";
   if(senderID == -1) strcpy(toClient, "\033[32mserver");
   else {
-    sprintf(toClient + 1, "%d] ", senderID);
+    sprintf(toClient + strlen("\033[90mWhisper from ["), "%d] ", senderID);
     strcat(toClient, senderName);
   }
   strcat(toClient, ": ");
   strcat(toClient, message);
-  if(senderID == -1) strcat(toClient, "\033[0m");
+  strcat(toClient, "\033[0m");
   write(targetSD, toClient, BUFFER_SIZE);
 }
 
@@ -528,7 +528,9 @@ int main() {
                   sendMessage(buffer, allPlayers, -1);
 
                   if(votedPlayer->role == R_JESTER){
-                    votedPlayer->hasWon = TRUE;
+                    sendMessage("Jester wins!", allPlayers, -1);
+                    singleMessage("Congratulations! You won.", votedPlayer->sockd, -1, NULL);
+                    return 0;
                   }
 
                   //KILL THE GUILTY PLAYER!!!
@@ -624,7 +626,7 @@ int main() {
 
                 printf("\n\nROLE ACTION!!\n\n");
                 int targetID = roleAction(alivePlayers, dyingPlayers, n, temp);
-                if(!targetID) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
+                if(targetID == -1) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
                 else {
                   sprintf(buffer, "[%d] %s has decided to ", n, allPlayers[n].name);
                   if(allPlayers[n].role == R_CONSIGLIERE) strcat(buffer, "investigate");
@@ -637,6 +639,18 @@ int main() {
                   sendMessage(buffer, mafiaPlayers, -1);
                 }
               } else singleMessage("You can only use your role ability during the night.", allPlayers[n].sockd, -1, NULL);
+            }
+          } else if(strncmp(buffer, "/w ", strlen("/w ")) == 0) {
+            printf("whisper sent\n");
+            char* temp = parsePlayerCommand(buffer, "/w ");
+            int j = -1;
+            while(++j < MAX_PLAYERS && alivePlayers[j].sockd > 0 && strncmp(alivePlayers[j].name, temp, strlen(alivePlayers[j].name)) != 0);
+            if(j == MAX_PLAYERS) singleMessage("Player not found.", allPlayers[n].sockd, -1, NULL);
+            else {
+              char spare[BUFFER_SIZE];
+              sprintf(spare, "[%d] %s is whispering to [%d] %s.", n, allPlayers[n].name, j, allPlayers[j].name);
+              sendMessage(spare, allPlayers, -1);
+              singleMessage(temp + strlen(alivePlayers[j].name), allPlayers[j].sockd, n, allPlayers[n].name);
             }
           } else {
             //handle messages
