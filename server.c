@@ -722,8 +722,9 @@ int main() {
               if(phase == GAMESTATE_NIGHT) {
 
                 printf("\n\nROLE ACTION!!\n\n");
-                int targetID = roleAction(alivePlayers, n, temp);
+                int targetID = roleAction(allPlayers, n, temp);
                 if(targetID == -1) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
+                else if(allPlayers[targetID].alive == 0) singleMessage("Player is dead", allPlayers[n].sockd, -1, NULL);
                 else {
                   sprintf(buffer, "[%d] %s has decided to ", n, allPlayers[n].name);
                   if(allPlayers[n].role == R_CONSIGLIERE) strcat(buffer, "investigate");
@@ -734,7 +735,7 @@ int main() {
                   strcat(buffer, temp);
                   free(temp);
                   sendMessage(buffer, mafiaPlayers, -1);
-                  printf("allPlayers[n].vissiitng: %d\n\n", allPlayers[n].visiting);
+                  printf("allPlayers[%d].vissiitng: %d\n\n", n, allPlayers[n].visiting);
                 }
               } else singleMessage("You can only use your role ability during the night.", allPlayers[n].sockd, -1, NULL);
             }
