@@ -838,7 +838,7 @@ int main() {
                           char vetMessage[BUFFER_SIZE];
                           sprintf(vetMessage, "You killed %s while alert.", allPlayers[allPlayers[n].visitorsID[i]].name);
                           singleMessage(vetMessage, allPlayers[n].sockd, -1, NULL);
-                          sprintf(visitorRelay, "You were killed by an alert veteran!", allPlayers[n].name);
+                          sprintf(visitorRelay, "You were killed by an alert veteran (%s)!", allPlayers[n].name);
                         }
                         else{
                             sprintf(visitorRelay, "You tried to kill %s but their defence was too high! your attack %d, their defense: %d, their added defense: %d", allPlayers[n].name, allPlayers[allPlayers[n].visitorsID[i]].attack , allPlayers[n].defense, allPlayers[n].addedDefense  );
