@@ -100,6 +100,5 @@ struct role {
 
 char* intToTeam(int i);
 char* intToRole(int role, int team);
-int roleAction(struct player* allPlayers, struct player* deadPlayers, int senderID, char* target);  
-
+int roleAction(struct player* allPlayers, int senderID, char* target);
 #endif

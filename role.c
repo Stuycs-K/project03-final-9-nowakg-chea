@@ -58,25 +58,23 @@ void movePlayer(int sd, struct player* from, struct player* to) {
 //if cant find player, returns -1
 //if sender is roleblocked, returns -2
 //if target defense is too high, returns -3
-int roleAction(struct player* allPlayers, struct player* deadPlayers, int senderID, char* target) {
+int roleAction(struct player* allPlayers, int senderID, char* target) {
     int targetID = -1;
     for(int i = 0; i < MAX_PLAYERS; ++i) {
         if(allPlayers[i].sockd > 0) {
             printf("roleAction %s %s\n", allPlayers[i].name, target);
             if(strcmp(allPlayers[i].name, target) == 0) {
                 targetID = i;
+
+                allPlayers[senderID].visiting = targetID;
+                printf("allPlayers[%d] setting its visiting to %d\n", senderID, targetID);
+                printf("allapleyurs :%d %d\n", senderID, allPlayers[senderID].visiting);
+                printf("all: %s\n", allPlayers[senderID].name);
+
                 break;
             }
         }
     }
-    if(targetID == -1) return -1;
-    int team = allPlayers[senderID].team;
-    int role = allPlayers[senderID].role;
-    if(team == T_TOWN) {
 
-    }
-    if(team == T_MAFIA) {
-        movePlayer(allPlayers[targetID].sockd, allPlayers, deadPlayers);
-    }
     return targetID;
 }

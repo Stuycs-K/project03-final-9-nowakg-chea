@@ -111,6 +111,7 @@ void timerSubserver(int toServer, int fromServer) {
       case GAMESTATE_LASTWORDS: time = 7; break;
       case GAMESTATE_KILL_VOTED: time = 5; break;
       case GAMESTATE_NIGHT: time = 37; break;
+      case GAMESTATE_RUN_NIGHT: time = 5; break;
     }
     while(time--) {
       sleep(1);
@@ -335,19 +336,88 @@ int main() {
   int neutralAlive = 0;
   //used for win conditions LATER
 
+  // used for later when dead people need to chat to the medium
+  int mediumSD = -1;
+
+  //for when jailor needs to jail his prisoner
+  int jailorSD = -1;
+
   for(int i = 0; i < playerCount; ++i) {
     printf("%s: %s %s\n", allPlayers[i].name, intToTeam(allPlayers[i].team), intToRole(allPlayers[i].role, allPlayers[i].team));
     write(allPlayers[i].sockd, intToRole(allPlayers[i].role, allPlayers[i].team), BUFFER_SIZE);
     write(allPlayers[i].sockd, intToTeam(allPlayers[i].team), BUFFER_SIZE);
 
+    allPlayers[i].defense = NO_DEFENSE;
+    allPlayers[i].attack = NO_ATTACK;
+    allPlayers[i].rolePriority = -1;
+    allPlayers[i].visiting = -1;
+    for(int n = 0; n < MAX_PLAYERS; n++){
+      allPlayers[i].visitorsID[n] = -1;
+    }
+
+
     if(allPlayers[i].team == T_TOWN){
       townAlive++;
+      switch (allPlayers[i].role){
+        case R_VETERAN:
+          allPlayers[i].rolePriority = 1;
+          break;
+        case R_MEDIUM:
+          mediumSD = allPlayers[i].sockd; //for later that medium can talk to dead at night
+          break;
+        case R_RETROBUTIONIST:
+          allPlayers[i].rolePriority = 1;
+          break;
+        case R_DOCTOR:
+          allPlayers[i].rolePriority = 3;
+          break;
+        case R_LOOKOUT:
+          allPlayers[i].rolePriority = 4;
+          break;
+        case R_SHERIFF:
+          allPlayers[i].rolePriority = 4;
+          break;
+        case R_JAILOR:
+          jailorSD = allPlayers[i].sockd; //for later when jailor jails people
+          allPlayers[i].rolePriority = 5;
+          break;
+        case R_VIGILANTE:
+          allPlayers[i].rolePriority = 5;
+          break;
+        case R_MAYOR:
+          allPlayers[i].rolePriority = 0;
+          break;
+      }
     }
     if(allPlayers[i].team == T_MAFIA){
       mafiaAlive++;
+
+      switch (allPlayers[i].role){
+        case R_GODFATHER:
+          allPlayers[i].defense = BASIC_DEFENSE;
+          allPlayers[i].attack = BASIC_ATTACK;
+          allPlayers[i].rolePriority = 5;
+          break;
+        case R_MAFIOSO:
+          allPlayers[i].attack = BASIC_ATTACK;
+          allPlayers[i].rolePriority = 5;
+          break;
+        case R_CONSIGLIERE:
+          allPlayers[i].rolePriority = 4;
+          break;
+        case R_BLACKMAILER:
+          allPlayers[i].rolePriority = 3;
+          break;
+      }
     }
     if(allPlayers[i].team == T_NEUTRAL){
       neutralAlive++;
+
+      switch (allPlayers[i].role){
+        case R_EXECUTIONER:
+          allPlayers[i].defense = BASIC_DEFENSE;
+          break;
+        }
     }
   }
 
@@ -374,17 +444,22 @@ int main() {
   while(win < 0){
     printf("new phase: %d\n", phase);
     if(phase == GAMESTATE_DISCUSSION) {
+
+        //move dying players to dead players and reset everyone's addedAttack and addedDefense
       for(int i = 0; i < MAX_PLAYERS; ++i) {
         if(dyingPlayers[i].sockd > 0) {
           allPlayers[i].alive = 0;
           deadPlayers[i] = dyingPlayers[i];
-          if(deadPlayers[i].team == T_TOWN){
+          if(deadPlayers[i].team == T_TOWN && deadPlayers[i].alive == FALSE){
             townAlive--;
+            if(allPlayers[i].role == R_MEDIUM){
+              mediumSD = -1;
+            }
           }
-          if(deadPlayers[i].team == T_MAFIA){
+          if(deadPlayers[i].team == T_MAFIA && deadPlayers[i].alive == FALSE){
             mafiaAlive--;
           }
-          if(deadPlayers[i].team == T_NEUTRAL){
+          if(deadPlayers[i].team == T_NEUTRAL && deadPlayers[i].alive == FALSE){
             neutralAlive--;
           }
 
@@ -398,7 +473,7 @@ int main() {
       //free(dyingPlayers);
       dyingPlayers = calloc(sizeof(struct player), MAX_PLAYERS);
     }
-    printf("yo\n");
+
     //win logic
     if(mafiaAlive == 0){
       win = T_TOWN;
@@ -416,7 +491,6 @@ int main() {
 
     FD_ZERO(&read_fds);
 
-    printf("yo\n");
     switch(phase) {
               case GAMESTATE_DAY:
                 sendMessage("Welcome to the Town of C-lem. If you are on the town team, you must vote to kill all the mafia members.  If you are the mafia you must kill all the town. If you are a neutral player you can win with either town or mafia but you have some other way to win. Have fun!", allPlayers, -1);
@@ -543,12 +617,35 @@ int main() {
                 break;
 
               case GAMESTATE_NIGHT:
-                if(votedPlayer != NULL){
-                  //kill this voted Player!!!
-                }
                 sendMessage("Talk to other mafia players and conspire to eliminate the town! Use /role target to do your role's action. If you have a role that requires you to target yourself do /role your-name.", mafiaPlayers, -1);
                 sendMessage("Good luck! Use /role target to do your role's action. If you have a role that requires you to target yourself do /role your-name.", townPlayers, -1);
                 sendMessage("Good luck! Use /role target to do your role's action. If you have a role that requires you to target yourself do /role your-name.", neutralPlayers, -1);
+                break;
+
+
+
+                  //all the role actions should go here.
+              case GAMESTATE_RUN_NIGHT:
+                for(int n = 0; n < MAX_PLAYERS; n++){
+                  if(allPlayers[n].sockd <= 0){
+                    continue;
+                  }
+                  printf("WE ARE NOW FIGURING OUT: %s PLAYER STUF THAT HAPPENED AT NIGHT\n", allPlayers[n].name);
+                  printf("NOW PARSING visiting: ID: %d \n", allPlayers[n].visiting);
+
+                }
+                for (int i = 0; i < MAX_PLAYERS; i++){
+                  if(allPlayers[i].sockd > 0){
+                    allPlayers[i].addedDefense = 0;
+                    allPlayers[i].addedAttack = 0;
+                    allPlayers[i].visiting = -1;
+                    for(int n = 0; n < MAX_PLAYERS; n++){
+                      allPlayers[i].visitorsID[n] = -1;
+                    }
+                  }
+                }
+                phase = GAMESTATE_DISCUSSION;
+                continue;
                 break;
             }
 
@@ -625,7 +722,7 @@ int main() {
               if(phase == GAMESTATE_NIGHT) {
 
                 printf("\n\nROLE ACTION!!\n\n");
-                int targetID = roleAction(alivePlayers, dyingPlayers, n, temp);
+                int targetID = roleAction(alivePlayers, n, temp);
                 if(targetID == -1) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
                 else {
                   sprintf(buffer, "[%d] %s has decided to ", n, allPlayers[n].name);
@@ -637,6 +734,7 @@ int main() {
                   strcat(buffer, temp);
                   free(temp);
                   sendMessage(buffer, mafiaPlayers, -1);
+                  printf("allPlayers[n].vissiitng: %d\n\n", allPlayers[n].visiting);
                 }
               } else singleMessage("You can only use your role ability during the night.", allPlayers[n].sockd, -1, NULL);
             }
@@ -746,6 +844,9 @@ int main() {
                 if(allPlayers[n].sockd > 0 && allPlayers[n].team == T_MAFIA) {
                   sendMessage(buffer, mafiaPlayers, allPlayers[n].role);
                 }
+                if(allPlayers[n].sockd > 0 && allPlayers[n].role == R_MEDIUM) {
+                  sendMessage(buffer, deadPlayers, allPlayers[n].role);
+                }
                 break;
             }
           }
@@ -774,6 +875,9 @@ int main() {
             continue;
           } else {
             sendMessage(buffer, deadPlayers, n);
+            if(mediumSD > 0){
+              singleMessage(buffer, mediumSD, deadPlayers[n].sockd, deadPlayers[n].name);
+            }
           }
         }
       }
@@ -783,7 +887,7 @@ int main() {
 
     nextPhase = 0;
     phase++;
-    if(phase == GAMESTATE_NIGHT + 1) phase = GAMESTATE_DISCUSSION;
+    if(phase == GAMESTATE_RUN_NIGHT + 1) phase = GAMESTATE_DISCUSSION;
   }
 
   //PAST HERE SOME GROUP OR TEAM HAS WON OR EVERYONE IS DEAD

@@ -48,7 +48,7 @@ current bugs: client joining is a queue and not spontaneous
 
 fixing voting timer bug
 ### 2024-01-12 THROUGH 2024-01-14 - Brief description
-Expanded description including how much time was spent on task.
+making priority and role system
 
 ### 2024-01-15 - Brief description
 Expanded description including how much time was spent on task.

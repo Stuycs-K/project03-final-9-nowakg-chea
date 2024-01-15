@@ -40,12 +40,17 @@
 #define GAMESTATE_LASTWORDS 6
 #define GAMESTATE_KILL_VOTED 7
 #define GAMESTATE_NIGHT 8
+#define GAMESTATE_RUN_NIGHT 9
 
 #define PIPE_READ 0
 #define PIPE_WRITE 1
 
 
-struct player {int sockd; char name[16]; int alive; int votesForTrial; int whatVote; int team; int role; int hasWon;};
+struct player {
+  int sockd; char name[16]; int alive; int votesForTrial; int whatVote; int team; int role; int hasWon;
+  int attack; int defense; int rolePriority; int addedAttack; int addedDefense;
+  int visitorsID[MAX_PLAYERS]; int visiting;
+};
 void err(int i, char*message);
 void movePlayer(int sd, struct player* from, struct player* to);
 //void serverStart();
