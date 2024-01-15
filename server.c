@@ -349,6 +349,8 @@ int main() {
 
     allPlayers[i].defense = NO_DEFENSE;
     allPlayers[i].attack = NO_ATTACK;
+    allPlayers[i].addedDefense = 0;
+    allPlayers[i].addedAttack = 0;
     allPlayers[i].rolePriority = -1;
     allPlayers[i].visiting = -1;
     for(int n = 0; n < MAX_PLAYERS; n++){
@@ -360,6 +362,7 @@ int main() {
       townAlive++;
       switch (allPlayers[i].role){
         case R_VETERAN:
+          allPlayers[i].attack = POWERFUL_ATTACK;
           allPlayers[i].rolePriority = 1;
           break;
         case R_MEDIUM:
@@ -379,13 +382,15 @@ int main() {
           break;
         case R_JAILOR:
           jailorSD = allPlayers[i].sockd; //for later when jailor jails people
+          allPlayers[i].attack = UNSTOPPABLE_ATTACK;
           allPlayers[i].rolePriority = 5;
           break;
         case R_VIGILANTE:
+          allPlayers[i].attack = BASIC_ATTACK;
           allPlayers[i].rolePriority = 5;
           break;
         case R_MAYOR:
-          allPlayers[i].rolePriority = 0;
+          allPlayers[i].rolePriority = 1;
           break;
       }
     }
@@ -417,7 +422,14 @@ int main() {
         case R_EXECUTIONER:
           allPlayers[i].defense = BASIC_DEFENSE;
           break;
+        case R_SERIALKILLER:
+          allPlayers[i].defense = BASIC_DEFENSE;
+          allPlayers[i].attack = BASIC_ATTACK;
+          break;
         }
+
+
+
     }
   }
 
@@ -626,14 +638,126 @@ int main() {
 
                   //all the role actions should go here.
               case GAMESTATE_RUN_NIGHT:
-                for(int n = 0; n < MAX_PLAYERS; n++){
-                  if(allPlayers[n].sockd <= 0){
-                    continue;
-                  }
-                  printf("WE ARE NOW FIGURING OUT: %s PLAYER STUF THAT HAPPENED AT NIGHT\n", allPlayers[n].name);
-                  printf("NOW PARSING visiting: ID: %d \n", allPlayers[n].visiting);
+                //PLAYER VISITS
+                //this will make it so that players with higher priority visit people first
+                for(int prio = 1; prio < 7; prio++){
+                  for(int n = 0; n < MAX_PLAYERS; n++){
+                    if(allPlayers[n].sockd <= 0 || allPlayers[n].rolePriority != prio){
+                      continue;
+                    }
+                    printf("WE ARE NOW FIGURING OUT: %s PLAYER STUF THAT HAPPENED AT NIGHT\n", allPlayers[n].name);
+                    printf("NOW PARSING visiting: ID: %d \n", allPlayers[n].visiting);
 
+                    //     set the array of the player being visited to the visiting player
+                    if(allPlayers[n].visiting > -1){
+                      for(int i = 0; i < MAX_PLAYERS; i++){
+                        if(allPlayers[allPlayers[n].visiting].visitorsID[i] == -1){
+                          allPlayers[allPlayers[n].visiting].visitorsID[i] = n;
+                          break;
+                        }
+                      }
+                    }
+                  }
                 }
+
+
+                //PLAYER DEFENSE AND ATTACK CALUCLATIONS / INVESTIGATES
+                for(int n = 0; n < MAX_PLAYERS; n++){
+                  for(int i = 0; i < MAX_PLAYERS; i++){
+                    if(allPlayers[n].sockd <= 0 || allPlayers[n].visitorsID[i] < 0){
+                      continue;
+                    }
+                    printf("%s, visited by: %s\n", allPlayers[n].name, allPlayers[allPlayers[n].visitorsID[i]].name);
+
+                    // allPlayers[allPlayers[n].visitorsID[i]] is visitor
+                    char visitorRelay[BUFFER_SIZE] = "";
+                    if(allPlayers[allPlayers[n].visitorsID[i]].team == T_TOWN){
+                      switch ( allPlayers[allPlayers[n].visitorsID[i]].role ){
+                        case R_DOCTOR:
+                          allPlayers[n].addedDefense = POWERFUL_DEFENSE;
+                          sprintf(visitorRelay, "You gave emergency medical aid to %s!", allPlayers[n].name);
+                          break;
+
+                        case R_LOOKOUT:
+                          int foundSomeone = FALSE;
+                          sprintf(visitorRelay,"You checked out %s's house and found...\n", allPlayers[n].name);
+
+                          for(int a = 0; a < MAX_PLAYERS; a++){
+                            if(allPlayers[n].sockd <= 0 || allPlayers[n].visitorsID[a] < 0){
+                              continue;
+                            }
+                            foundSomeone = TRUE;
+                            strcat(visitorRelay, allPlayers[allPlayers[n].visitorsID[a]].name );
+                            strcat(visitorRelay, " \n");
+                          }
+                          if(foundSomeone){
+                            strcat(visitorRelay, "lurking around!");
+                          }
+                          else{
+                            strcat(visitorRelay, "nobody!");
+                          }
+                          break;
+
+                        case R_SHERIFF:
+                          if(  (allPlayers[n].team == T_MAFIA && allPlayers[n].role != R_GODFATHER)  || allPlayers[n].role == R_SERIALKILLER ){
+                            sprintf(visitorRelay, "Your target %s seems to either be a criminal or someone who has been framed!", allPlayers[n].name);
+                          }
+                          else{
+                            sprintf(visitorRelay, "Your target %s seems to either be innocent or really great at hiding secrets!", allPlayers[n].name);
+                          }
+                          break;
+
+                        case R_JAILOR:
+                          allPlayers[n].addedDefense = POWERFUL_DEFENSE;
+                          break;
+
+                        case R_VIGILANTE:
+                          if(allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].defense && allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].addedDefense){
+                            //kill them
+                            sprintf(visitorRelay, "You killed %s!", allPlayers[n].name);
+                          }
+                          else{
+                            sprintf(visitorRelay, "You tried to kill %s but their defence was too high! your attack %d, theikr defense: %d, their added defense: %d", allPlayers[n].name, allPlayers[allPlayers[n].visitorsID[i]].attack , allPlayers[n].defense, allPlayers[n].addedDefense  );
+                          }
+                          break;
+                        }
+                    }
+                    else if(allPlayers[allPlayers[n].visitorsID[i]].team == T_MAFIA){
+                        switch ( allPlayers[allPlayers[n].visitorsID[i]].role ){
+
+                          case R_GODFATHER:
+                            if(allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].defense && allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].addedDefense){
+                              //kill them
+                              sprintf(visitorRelay, "You killed %s!", allPlayers[n].name);
+                            }
+                            else{
+                              sprintf(visitorRelay, "You tried to kill %s but their defence was too high! your attack %d, theikr defense: %d, their added defense: %d", allPlayers[n].name, allPlayers[allPlayers[n].visitorsID[i]].attack , allPlayers[n].defense, allPlayers[n].addedDefense  );
+                            }
+                            break;
+                          case R_MAFIOSO:
+                            if(allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].defense && allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].addedDefense){
+                              //kill them
+                              sprintf(visitorRelay, "You killed %s!", allPlayers[n].name);
+                            }
+                            else{
+                              sprintf(visitorRelay, "You tried to kill %s but their defence was too high!", allPlayers[n].name);
+                            }
+                            break;
+                          case R_CONSIGLIERE:
+                            sprintf(visitorRelay, "Your target %s is a %s", allPlayers[n].name, intToRole(allPlayers[n].team, allPlayers[n].role));
+                            break;
+                          case R_BLACKMAILER:
+                            sprintf(visitorRelay, "You have blackmailed %s, and they cannot talk for the next day!", allPlayers[n].name);
+                            break;
+                        }
+                      }
+
+
+                      singleMessage(visitorRelay, allPlayers[allPlayers[n].visitorsID[i]].sockd, -1, NULL);
+                    }
+                  }
+
+
                 for (int i = 0; i < MAX_PLAYERS; i++){
                   if(allPlayers[i].sockd > 0){
                     allPlayers[i].addedDefense = 0;
@@ -720,7 +844,6 @@ int main() {
 
             if(allPlayers[n].team == T_MAFIA) {
               if(phase == GAMESTATE_NIGHT) {
-
                 printf("\n\nROLE ACTION!!\n\n");
                 int targetID = roleAction(allPlayers, n, temp);
                 if(targetID == -1) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
@@ -737,9 +860,17 @@ int main() {
                   sendMessage(buffer, mafiaPlayers, -1);
                   printf("allPlayers[%d].vissiitng: %d\n\n", n, allPlayers[n].visiting);
                 }
-              } else singleMessage("You can only use your role ability during the night.", allPlayers[n].sockd, -1, NULL);
+              }
+              else singleMessage("You can only use your role ability during the night.", allPlayers[n].sockd, -1, NULL);
             }
-          } else if(strncmp(buffer, "/w ", strlen("/w ")) == 0) {
+            else if(allPlayers[n].team == T_TOWN){
+              int targetID = roleAction(allPlayers, n, temp);
+              if(targetID == -1) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
+              else if(allPlayers[targetID].alive == 0) singleMessage("Player is dead", allPlayers[n].sockd, -1, NULL);
+              printf("allPlayers[%d].vissiitng: %d\n\n", n, allPlayers[n].visiting);
+            }
+          }
+         else if(strncmp(buffer, "/w ", strlen("/w ")) == 0) {
             printf("whisper sent\n");
             char* temp = parsePlayerCommand(buffer, "/w ");
             int j = -1;
@@ -751,7 +882,8 @@ int main() {
               sendMessage(spare, allPlayers, -1);
               singleMessage(temp + strlen(alivePlayers[j].name), allPlayers[j].sockd, n, allPlayers[n].name);
             }
-          } else {
+          }
+          else {
             //handle messages
             switch(phase){
               case GAMESTATE_DAY:
@@ -881,8 +1013,11 @@ int main() {
             }
           }
         }
+
       }
-      }
+
+
+    }
 
 
 
