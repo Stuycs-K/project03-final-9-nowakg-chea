@@ -55,9 +55,9 @@ void movePlayer(int sd, struct player* from, struct player* to) {
 }
 
 //if action successful, returns id of target
-//if cant find player, returns 0
-//if sender is roleblocked, returns -1
-//if target defense is too high, returns -2
+//if cant find player, returns -1
+//if sender is roleblocked, returns -2
+//if target defense is too high, returns -3
 int roleAction(struct player* allPlayers, struct player* deadPlayers, int senderID, char* target) {
     int targetID = -1;
     for(int i = 0; i < MAX_PLAYERS; ++i) {
@@ -69,7 +69,7 @@ int roleAction(struct player* allPlayers, struct player* deadPlayers, int sender
             }
         }
     }
-    if(targetID == -1) return 0;
+    if(targetID == -1) return -1;
     int team = allPlayers[senderID].team;
     int role = allPlayers[senderID].role;
     if(team == T_TOWN) {
