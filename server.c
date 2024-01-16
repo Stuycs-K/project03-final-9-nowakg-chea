@@ -270,22 +270,24 @@ int main() {
   //start giving roles to each player
   for(int i = 0; i < playerCount; ++i) {
 
-    // if(i == 0) {
-    //   allPlayers[i].team = T_NEUTRAL;
-    //   allPlayers[i].role = R_EXECUTIONER;
-    //   alivePlayers[i].team = T_NEUTRAL;
-    //   alivePlayers[i].role = R_EXECUTIONER;
-    //   neutralPlayers[R_EXECUTIONER] = allPlayers[i];
-    //   continue;
-    // }
-    // if(i == 0) {
-    //   allPlayers[i].team = T_TOWN;
-    //   allPlayers[i].role = R_JAILOR;
-    //   alivePlayers[i].team = T_TOWN;
-    //   alivePlayers[i].role = R_JAILOR;
-    //   townPlayers[R_JAILOR] = allPlayers[i];
-    //   continue;
-    // }
+    if(i == 0) {
+      allPlayers[i].team = T_MAFIA;
+      allPlayers[i].role = R_GODFATHER;
+      alivePlayers[i].team = T_MAFIA;
+      alivePlayers[i].role = R_GODFATHER;
+      mafiaPlayers[R_GODFATHER] = allPlayers[i];
+      --mafiaCount;
+      continue;
+    }
+    if(i == 1) {
+      allPlayers[i].team = T_MAFIA;
+      allPlayers[i].role = R_MAFIOSO;
+      alivePlayers[i].team = T_MAFIA;
+      alivePlayers[i].role = R_MAFIOSO;
+      mafiaPlayers[R_MAFIOSO] = allPlayers[i];
+      --mafiaCount;
+      continue;
+    }
     // if(i == 0) {
     //   allPlayers[i].team = T_MAFIA;
     //   allPlayers[i].role = R_BLACKMAILER;
@@ -367,6 +369,8 @@ int main() {
     if(team == T_MAFIA) mafiaPlayers[role] = allPlayers[i];
     if(team == T_NEUTRAL) neutralPlayers[role] = allPlayers[i];
   }
+
+ 
 
   sendMessage("Game: Your role and team is...", allPlayers, -1);
 
@@ -992,7 +996,7 @@ int main() {
 
     //timer
     write(mainToTimer[PIPE_WRITE], &phase, sizeof(int));
-
+    int godfatherOverride = 0;
     while(!nextPhase) {
       FD_ZERO(&read_fds);
       //add the pipe file descriptor
@@ -1086,21 +1090,54 @@ int main() {
 
             if(allPlayers[n].team == T_MAFIA) {
               if(phase == GAMESTATE_NIGHT) {
+                
+                int targetID;
                 printf("\n\nROLE ACTION!!\n\n");
-                int targetID = roleAction(allPlayers, n, temp);
-                if(targetID == -1) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
-                else if(allPlayers[targetID].alive == 0) singleMessage("Player is dead", allPlayers[n].sockd, -1, NULL);
-                else {
-                  sprintf(buffer, "[%d] %s has decided to ", n, allPlayers[n].name);
-                  if(allPlayers[n].role == R_CONSIGLIERE) strcat(buffer, "investigate");
-                  else if(allPlayers[n].role == R_BLACKMAILER) strcat(buffer, "blackmail");
-                  else strcat(buffer, "kill");
-                  temp = malloc(BUFFER_SIZE);
-                  sprintf(temp, " [%d] %s tonight.", targetID, allPlayers[targetID].name);
-                  strcat(buffer, temp);
-                  free(temp);
-                  sendMessage(buffer, mafiaPlayers, -1);
-                  printf("allPlayers[%d].vissiitng: %d\n\n", n, allPlayers[n].visiting);
+                if(allPlayers[n].role == R_GODFATHER && mafiaPlayers[R_MAFIOSO].sockd > 0 && mafiaPlayers[R_MAFIOSO].alive) { //godfather and mafioso, godfather sends
+                  int mafioso;
+                  for(int j = 0; j < MAX_PLAYERS; ++j) {
+                    if(allPlayers[j].team == T_MAFIA && allPlayers[j].role == R_MAFIOSO) {
+                      mafioso = j;
+                      break;
+                    }
+                  }
+
+                  // for(int i = 0; i < MAX_PLAYERS; ++i) {
+                  //   printf("%d\n", allPlayers[i].sockd);
+                  // }
+
+                  targetID = roleAction(allPlayers, mafioso, temp);
+                  godfatherOverride = 1;
+                  if(targetID == -1) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
+                  else if(allPlayers[targetID].alive == 0) singleMessage("Player is dead", allPlayers[n].sockd, -1, NULL);
+                  else {
+                    sprintf(buffer, "[%d] %s has ordered [%d] %s to ", n, allPlayers[n].name, mafioso, allPlayers[mafioso].name);
+                    strcat(buffer, "kill");
+                    temp = malloc(BUFFER_SIZE);
+                    sprintf(temp, " [%d] %s tonight.", targetID, allPlayers[targetID].name);
+                    strcat(buffer, temp);
+                    free(temp);
+                    sendMessage(buffer, mafiaPlayers, -1);
+                    printf("allPlayers[%d].vissiitng: %d\n\n", n, allPlayers[n].visiting);
+                  }
+                } else if(allPlayers[n].role == R_MAFIOSO && godfatherOverride) { //mafioso, godfather has sent
+                  singleMessage("The Godfather has already assigned a target for you.", allPlayers[n].sockd, -1, NULL);
+                } else {
+                  int targetID = roleAction(allPlayers, n, temp);
+                  if(targetID == -1) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
+                  else if(allPlayers[targetID].alive == 0) singleMessage("Player is dead", allPlayers[n].sockd, -1, NULL);
+                  else {
+                    sprintf(buffer, "[%d] %s has decided to ", n, allPlayers[n].name);
+                    if(allPlayers[n].role == R_CONSIGLIERE) strcat(buffer, "investigate");
+                    else if(allPlayers[n].role == R_BLACKMAILER) strcat(buffer, "blackmail");
+                    else strcat(buffer, "kill");
+                    temp = malloc(BUFFER_SIZE);
+                    sprintf(temp, " [%d] %s tonight.", targetID, allPlayers[targetID].name);
+                    strcat(buffer, temp);
+                    free(temp);
+                    sendMessage(buffer, mafiaPlayers, -1);
+                    printf("allPlayers[%d].vissiitng: %d\n\n", n, allPlayers[n].visiting);
+                  }
                 }
               }
               else singleMessage("You can only use your role ability during the night.", allPlayers[n].sockd, -1, NULL);
