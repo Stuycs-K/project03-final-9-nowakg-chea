@@ -771,6 +771,7 @@ int main() {
                   if(allPlayers[n].role == R_JAILOR && allPlayers[allPlayers[jailorID].jailorPrisonerID].sockd > 0 && allPlayers[allPlayers[jailorID].jailorPrisonerID].alive == TRUE){
                     singleMessage("You've been hauled to jail! The jailor is now going to interrogate you.", allPlayers[allPlayers[jailorID].jailorPrisonerID].sockd, -1, "Jailor");
                     allPlayers[allPlayers[jailorID].jailorPrisonerID].addedDefense = POWERFUL_DEFENSE;
+                    //printf("%s: defense: %d\n",allPlayers[allPlayers[jailorID].jailorPrisonerID].name,allPlayers[allPlayers[jailorID].jailorPrisonerID].addedDefense);
                     continue;
                   }
                 }
@@ -930,6 +931,20 @@ int main() {
                             break;
                         }
                       }
+                      else if(allPlayers[allPlayers[n].visitorsID[i]].team == T_NEUTRAL){
+                          switch ( allPlayers[allPlayers[n].visitorsID[i]].role ){
+                            case R_SERIALKILLER:
+                              if(allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].defense && allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].addedDefense){
+                                //KILL PLAYER HERE
+                                movePlayer(allPlayers[n].sockd, alivePlayers, dyingPlayers);
+                                sprintf(visitorRelay, "You killed %s!", allPlayers[n].name);
+                              }
+                              else{
+                                sprintf(visitorRelay, "You tried to kill %s but their defence was too high! your attack %d, theikr defense: %d, their added defense: %d", allPlayers[n].name, allPlayers[allPlayers[n].visitorsID[i]].attack , allPlayers[n].defense, allPlayers[n].addedDefense  );
+                              }
+                              break;
+                          }
+                        }
 
                       if(allPlayers[n].role == R_VETERAN && allPlayers[n].veteranAlert == TRUE){
                         if(allPlayers[n].attack > allPlayers[allPlayers[n].visitorsID[i]].defense && allPlayers[n].attack > allPlayers[allPlayers[n].visitorsID[i]].addedDefense){

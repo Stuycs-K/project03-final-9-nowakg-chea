@@ -56,7 +56,8 @@ fixed voting bug that allowed people to vote a bunch of times for the same perso
 finished veteran, vigilante
 worked on medium
 implemented blackmailer
-
+implemented jailor
+implemented serial killer
 
 
 ## Andrew
