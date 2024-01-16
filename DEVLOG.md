@@ -59,6 +59,8 @@ implemented blackmailer
 implemented jailor
 implemented serial killer
 
+READ ME !!!!
+
 
 ## Andrew
 

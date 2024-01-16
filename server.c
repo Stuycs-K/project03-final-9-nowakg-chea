@@ -118,12 +118,12 @@ void timerSubserver(int toServer, int fromServer) {
       case GAMESTATE_DAY: time = 15; break;
       case GAMESTATE_DISCUSSION: time = 30; break;
       case GAMESTATE_VOTING: time = 30; break;
-      case GAMESTATE_DEFENSE: time = 20; break;
+      case GAMESTATE_DEFENSE: time = 30; break; //originally 20
       case GAMESTATE_JUDGEMENT: time = 20; break;
       case GAMESTATE_VOTE_COUNTING: time = 1; break;
       case GAMESTATE_LASTWORDS: time = 7; break;
       case GAMESTATE_KILL_VOTED: time = 5; break;
-      case GAMESTATE_NIGHT: time = 37; break;
+      case GAMESTATE_NIGHT: time = 45; break; //orignally 37
       case GAMESTATE_RUN_NIGHT: time = 5; break;
     }
     while(time--) {
