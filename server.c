@@ -687,7 +687,6 @@ int main() {
                   //KILL THE GUILTY PLAYER!!!
                   //KILL PLAYER HERE
                   movePlayer(votedPlayer->sockd, alivePlayers, deadPlayers);
-                  votedPlayer->alive = FALSE;
                   singleMessage("You have been killed! You can now talk with other dead players.", votedPlayer->sockd, -1, NULL);
                   --playerCount;
 
@@ -791,12 +790,12 @@ int main() {
                           allPlayers[allPlayers[n].visitorsID[i]].vigilanteBullets--;
                           if(allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].defense && allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].addedDefense){
                             //KILL PLAYER HERE
-                            movePlayer(allPlayers[n].sockd, alivePlayers, deadPlayers);
+                            movePlayer(allPlayers[n].sockd, alivePlayers, dyingPlayers);
                             sprintf(visitorRelay, "You killed %s! You have %d bullets left in your gun to kill other players.", allPlayers[n].name, allPlayers[allPlayers[n].visitorsID[i]].vigilanteBullets);
 
                             if(allPlayers[n].team == T_TOWN){
                               //KILL PLAYER HERE
-                              movePlayer(allPlayers[n].visitorsID[i], alivePlayers, deadPlayers);
+                              movePlayer(allPlayers[n].sockd, alivePlayers, dyingPlayers);
                               strcat(visitorRelay, "You killed yourself out of regret for killing a fellow town member! You are dead.");
                             }
 
@@ -813,7 +812,7 @@ int main() {
                           case R_GODFATHER:
                             if(allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].defense && allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].addedDefense){
                               //KILL PLAYER HERE
-                              movePlayer(allPlayers[n].sockd, dyingPlayers, NULL);
+                              movePlayer(allPlayers[n].sockd, alivePlayers, dyingPlayers);
                               sprintf(visitorRelay, "You killed %s!", allPlayers[n].name);
                             }
                             else{
@@ -823,7 +822,7 @@ int main() {
                           case R_MAFIOSO:
                             if(allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].defense && allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].addedDefense){
                               //KILL PLAYER HERE
-                              movePlayer(allPlayers[n].sockd, dyingPlayers, NULL);
+                              movePlayer(allPlayers[n].sockd, alivePlayers, dyingPlayers);
                               sprintf(visitorRelay, "You killed %s!", allPlayers[n].name);
                             }
                             else{
@@ -842,8 +841,7 @@ int main() {
                       if(allPlayers[n].role == R_VETERAN && allPlayers[n].veteranAlert == TRUE){
                         if(allPlayers[n].attack > allPlayers[allPlayers[n].visitorsID[i]].defense && allPlayers[n].attack > allPlayers[allPlayers[n].visitorsID[i]].addedDefense){
                           //KILL PLAYER HERE
-                          movePlayer(allPlayers[allPlayers[n].visitorsID[i]].sockd, alivePlayers, deadPlayers);
-                          allPlayers[allPlayers[n].visitorsID[i]].alive = FALSE;
+                          movePlayer(allPlayers[allPlayers[n].visitorsID[i]].sockd, alivePlayers, dyingPlayers);
                           char vetMessage[BUFFER_SIZE];
                           sprintf(vetMessage, "You killed %s while alert.", allPlayers[allPlayers[n].visitorsID[i]].name);
                           singleMessage(vetMessage, allPlayers[n].sockd, -1, NULL);
