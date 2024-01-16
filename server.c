@@ -265,12 +265,20 @@ int main() {
     //   neutralPlayers[R_EXECUTIONER] = allPlayers[i];
     //   continue;
     // }
+    // if(i == 0) {
+    //   allPlayers[i].team = T_TOWN;
+    //   allPlayers[i].role = R_VETERAN;
+    //   alivePlayers[i].team = T_TOWN;
+    //   alivePlayers[i].role = R_VETERAN;
+    //   townPlayers[R_VETERAN] = allPlayers[i];
+    //   continue;
+    // }
     if(i == 0) {
-      allPlayers[i].team = T_TOWN;
-      allPlayers[i].role = R_VETERAN;
-      alivePlayers[i].team = T_TOWN;
-      alivePlayers[i].role = R_VETERAN;
-      townPlayers[R_VETERAN] = allPlayers[i];
+      allPlayers[i].team = T_MAFIA;
+      allPlayers[i].role = R_BLACKMAILER;
+      alivePlayers[i].team = T_MAFIA;
+      alivePlayers[i].role = R_BLACKMAILER;
+      mafiaPlayers[R_BLACKMAILER] = allPlayers[i];
       continue;
     }
 
@@ -360,6 +368,9 @@ int main() {
   //for when jailor needs to jail his prisoner
   int jailorSD = -1;
 
+  //for reading whsipers
+  int blackmailerSD = -1;
+
   for(int i = 0; i < playerCount; ++i) {
     printf("%s: %s %s\n", allPlayers[i].name, intToTeam(allPlayers[i].team), intToRole(allPlayers[i].role, allPlayers[i].team));
     write(allPlayers[i].sockd, intToRole(allPlayers[i].role, allPlayers[i].team), BUFFER_SIZE);
@@ -371,6 +382,7 @@ int main() {
     allPlayers[i].addedAttack = 0;
     allPlayers[i].rolePriority = -1;
     allPlayers[i].visiting = -1;
+    allPlayers[i].blackmailed = FALSE;
     for(int n = 0; n < MAX_PLAYERS; n++){
       allPlayers[i].visitorsID[n] = -1;
     }
@@ -433,6 +445,7 @@ int main() {
           break;
         case R_BLACKMAILER:
           allPlayers[i].rolePriority = 3;
+          blackmailerSD = allPlayers[i].sockd; //for later when blackmailing people and reading whsipers
           break;
       }
     }
@@ -565,6 +578,7 @@ int main() {
                 for(int n = 0; n < MAX_PLAYERS; n++){
                   if(allPlayers[n].sockd > 0) {
                     allPlayers[n].votesForTrial = 0;
+                    allPlayers[n].votedFor = -1;
                   }
                 }
                 sprintf(buffer,"It is time to vote! You have %d tries left to vote to kill a player. Use /vote player_name to vote to put a player on trial.",votingTries);
@@ -645,8 +659,9 @@ int main() {
                   }
                 }
                 if(guiltyVotes <= innoVotes){
-                  sprintf(buffer, " has not enough votes to be killed. You now have %d tries left to vote a player.", votingTries );
-                  sendMessage(buffer, allPlayers, -1);
+                  char noVoteMessage[BUFFER_SIZE];
+                  sprintf(noVoteMessage, "%s had not enough votes to be killed. You now have %d tries left to vote a player. ", votedPlayer->name, votingTries);
+                  sendMessage(noVoteMessage, allPlayers, -1);
                   phase = GAMESTATE_VOTING;
                   votedPlayer = NULL;
                   continue;
@@ -697,6 +712,15 @@ int main() {
                 break;
 
               case GAMESTATE_NIGHT:
+                //get rid of blackmailed players
+                for(int n = 0; n < MAX_PLAYERS; n++){
+                  if(allPlayers[n].sockd <= 0){
+                    continue;
+                  }
+                  allPlayers[n].blackmailed = FALSE;
+                }
+
+
                 sendMessage("Talk to other mafia players and conspire to eliminate the town! Use /role target to do your role's action. If you have a role that requires you to target yourself do /role your-name.", mafiaPlayers, -1);
                 sendMessage("Good luck! Use /role target to do your role's action. If you have a role that requires you to target yourself do /role your-name.", townPlayers, -1);
                 sendMessage("Good luck! Use /role target to do your role's action. If you have a role that requires you to target yourself do /role your-name.", neutralPlayers, -1);
@@ -833,7 +857,9 @@ int main() {
                             sprintf(visitorRelay, "Your target %s is a %s", allPlayers[n].name, intToRole(allPlayers[n].team, allPlayers[n].role));
                             break;
                           case R_BLACKMAILER:
-                            sprintf(visitorRelay, "You have blackmailed %s, and they cannot talk for the next day!", allPlayers[n].name);
+                            sprintf(visitorRelay, "You have blackmailed %s, and they cannot talk for the day!", allPlayers[n].name);
+                            singleMessage("You have been blackmailed. You cannot talk for the entire day!", allPlayers[n].sockd,-1,NULL);
+                            allPlayers[n].blackmailed = TRUE;
                             break;
                         }
                       }
@@ -1004,7 +1030,7 @@ int main() {
                     allPlayers[n].veteranAlertCount++;
                     sprintf(vetAlert, "You have decided to NOT go on alert. After tonight you can go on alert only %d more times.", allPlayers[n].veteranAlertCount);
                     singleMessage(vetAlert, allPlayers[n].sockd, -1, NULL);
-                    allPlayers[n].veteranAlert = FALSE;        
+                    allPlayers[n].veteranAlert = FALSE;
                   }
                   else{
                     if(allPlayers[n].veteranAlertCount > 0){
@@ -1034,6 +1060,12 @@ int main() {
             }
           }
          else if(strncmp(buffer, "/w ", strlen("/w ")) == 0) {
+
+           if(allPlayers[n].blackmailed == TRUE){
+             singleMessage("You cannot whisper. You are blackmailed.", allPlayers[n].sockd, -1, NULL);
+             continue;
+           }
+
             printf("whisper sent\n");
             char* temp = parsePlayerCommand(buffer, "/w ");
             int j = -1;
@@ -1043,12 +1075,31 @@ int main() {
               char spare[BUFFER_SIZE];
               sprintf(spare, "[%d] %s is whispering to [%d] %s.", n, allPlayers[n].name, j, allPlayers[j].name);
               sendMessage(spare, allPlayers, -1);
+
               singleMessage(temp + strlen(alivePlayers[j].name), allPlayers[j].sockd, n, allPlayers[n].name);
+
+              //blackmailer can read whispers
+              if(blackmailerSD > 0){
+                char blackmailAppend[BUFFER_SIZE];
+                sprintf(blackmailAppend, "       (sent to [%d] %s)", j, alivePlayers[j].name);
+                strcat(temp, blackmailAppend);
+                singleMessage(temp + strlen(alivePlayers[j].name), blackmailerSD, n, allPlayers[n].name);
+              }
             }
           }
           else {
 
             //HANDLE MESSAGES
+
+            if(allPlayers[n].blackmailed == TRUE){
+              if(phase == GAMESTATE_DEFENSE || phase == GAMESTATE_LASTWORDS){
+                sendMessage("I am blackmailed.", allPlayers, n);
+              }
+              else{
+                singleMessage("You cannot talk. You are blackmailed.", allPlayers[n].sockd, -1, NULL);
+              }
+              continue;
+            }
 
             switch(phase){
               case GAMESTATE_DAY:
@@ -1079,14 +1130,11 @@ int main() {
                 else{
                   sendMessage(buffer, allPlayers, n);
                 }
-
-
                 break;
 
               case GAMESTATE_DEFENSE:
                 if(allPlayers[n].sockd != 0){
                   if(votedPlayer->sockd == allPlayers[n].sockd){
-                    printf("sock %d\n", allPlayers[n].sockd);
                     sendMessage(buffer, allPlayers, n);
                   }
                   else{
@@ -1098,7 +1146,7 @@ int main() {
 
               case GAMESTATE_JUDGEMENT:
               //player on trial cannot vote
-              if(votedPlayer->sockd == allPlayers[n].sockd){
+              if(votedPlayer->sockd == allPlayers[n].sockd && (strncmp(buffer, "/vote ", strlen("/vote ")) == 0)   ){
                   singleMessage("You cannot vote, you are on trial!", votedPlayer->sockd, -1, NULL);
                   continue;
                 }

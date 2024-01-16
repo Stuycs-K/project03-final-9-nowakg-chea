@@ -54,7 +54,9 @@ making priority and role system
 worked on mayor (and revealing)
 fixed voting bug that allowed people to vote a bunch of times for the same person
 finished veteran, vigilante
-worked on medium 
+worked on medium
+implemented blackmailer
+
 
 
 ## Andrew
