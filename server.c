@@ -1144,6 +1144,7 @@ int main() {
                   godfatherOverride = 1;
                   if(targetID == -1) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
                   else if(allPlayers[targetID].alive == 0) singleMessage("Player is dead", allPlayers[n].sockd, -1, NULL);
+                  else if(allPlayers[targetID].team == T_MAFIA) singleMessage("Don't kill your teammates!", allPlayers[n].sockd, -1, NULL);
                   else {
                     sprintf(buffer, "[%d] %s has ordered [%d] %s to ", n, allPlayers[n].name, mafioso, allPlayers[mafioso].name);
                     strcat(buffer, "kill");
@@ -1160,6 +1161,7 @@ int main() {
                   int targetID = roleAction(allPlayers, n, temp);
                   if(targetID == -1) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
                   else if(allPlayers[targetID].alive == 0) singleMessage("Player is dead", allPlayers[n].sockd, -1, NULL);
+                  else if(allPlayers[targetID].team == T_MAFIA) singleMessage("Don't kill your teammates!", allPlayers[n].sockd, -1, NULL);
                   else {
                     sprintf(buffer, "[%d] %s has decided to ", n, allPlayers[n].name);
                     if(allPlayers[n].role == R_CONSIGLIERE) strcat(buffer, "investigate");
