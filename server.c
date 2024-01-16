@@ -257,14 +257,14 @@ int main() {
   //start giving roles to each player
   for(int i = 0; i < playerCount; ++i) {
 
-    // if(i == 0) {
-    //   allPlayers[i].team = T_NEUTRAL;
-    //   allPlayers[i].role = R_EXECUTIONER;
-    //   alivePlayers[i].team = T_NEUTRAL;
-    //   alivePlayers[i].role = R_EXECUTIONER;
-    //   neutralPlayers[R_EXECUTIONER] = allPlayers[i];
-    //   continue;
-    // }
+    if(i == 0) {
+      allPlayers[i].team = T_NEUTRAL;
+      allPlayers[i].role = R_JESTER;
+      alivePlayers[i].team = T_NEUTRAL;
+      alivePlayers[i].role = R_JESTER;
+      neutralPlayers[R_JESTER] = allPlayers[i];
+      continue;
+    }
     // if(i == 0) {
     //   allPlayers[i].team = T_TOWN;
     //   allPlayers[i].role = R_VETERAN;
@@ -273,14 +273,14 @@ int main() {
     //   townPlayers[R_VETERAN] = allPlayers[i];
     //   continue;
     // }
-    if(i == 0) {
-      allPlayers[i].team = T_MAFIA;
-      allPlayers[i].role = R_BLACKMAILER;
-      alivePlayers[i].team = T_MAFIA;
-      alivePlayers[i].role = R_BLACKMAILER;
-      mafiaPlayers[R_BLACKMAILER] = allPlayers[i];
-      continue;
-    }
+    // if(i == 0) {
+    //   allPlayers[i].team = T_MAFIA;
+    //   allPlayers[i].role = R_BLACKMAILER;
+    //   alivePlayers[i].team = T_MAFIA;
+    //   alivePlayers[i].role = R_BLACKMAILER;
+    //   mafiaPlayers[R_BLACKMAILER] = allPlayers[i];
+    //   continue;
+    // }
 
     //decide the team
     //printf("Player: %d\n", i);
@@ -491,6 +491,8 @@ int main() {
     executionerTarget = target;
   }
 
+  int jesterWin = 0, executionerWin = 0;
+
   //BEGIN THE GAME
 
   int nextPhase = 0;
@@ -516,19 +518,26 @@ int main() {
         if(dyingPlayers[i].sockd > 0) {
           allPlayers[i].alive = FALSE;
           deadPlayers[i] = dyingPlayers[i];
-          if(deadPlayers[i].team == T_TOWN && deadPlayers[i].alive == FALSE){
-            townAlive--;
+          if(deadPlayers[i].team == T_TOWN) {
+            --townAlive;
             if(allPlayers[i].role == R_MEDIUM){
               mediumSD = -1;
             }
+            if(townAlive == 0) {
+              win = T_MAFIA;
+              break;
+            }
           }
-          if(deadPlayers[i].team == T_MAFIA && deadPlayers[i].alive == FALSE){
-            mafiaAlive--;
+          if(deadPlayers[i].team == T_MAFIA) {
+            --mafiaAlive;
+            if(mafiaAlive == 0) {
+              win = T_TOWN;
+              break;
+            }
           }
-          if(deadPlayers[i].team == T_NEUTRAL && deadPlayers[i].alive == FALSE){
-            neutralAlive--;
+          if(deadPlayers[i].team == T_NEUTRAL) {
+            --neutralAlive;
           }
-
           sprintf(buffer, "%s died last night. Their role was %s.", deadPlayers[i].name, intToRole(deadPlayers[i].role, deadPlayers[i].team));
           sendMessage(buffer, allPlayers, -1);
           singleMessage("You have been killed! You can now talk with other dead players.", deadPlayers[i].sockd, -1, NULL);
@@ -693,10 +702,13 @@ int main() {
 
                   if(votedPlayer->role == R_JESTER){
                     singleMessage("Congratulations! You won. Stick around and you will be able to kill somebody at night!", votedPlayer->sockd, -1, NULL);
+                    jesterWin = 1;
                   }
 
                   if(votedPlayer->sockd == allPlayers[executionerTarget].sockd) {
+                    sendMessage("The executioner's target has been voted out!", allPlayers, -1);
                     singleMessage("Congratulations! You won. Stick around and you will be able to side with either town or mafia but you win either way.", neutralPlayers[R_EXECUTIONER].sockd, -1, NULL);
+                    executionerWin = 1;
                   }
 
                   //KILL THE GUILTY PLAYER!!!
@@ -704,7 +716,23 @@ int main() {
                   movePlayer(votedPlayer->sockd, alivePlayers, deadPlayers);
                   singleMessage("You have been killed! You can now talk with other dead players.", votedPlayer->sockd, -1, NULL);
                   --playerCount;
-
+                  if(votedPlayer->team == T_TOWN) {
+                    --townAlive;
+                    if(townAlive == 0) {
+                      win = T_MAFIA;
+                      break;
+                    }
+                  }
+                  if(votedPlayer->team == T_MAFIA) {
+                    --mafiaAlive;
+                    if(mafiaAlive == 0) {
+                      win = T_TOWN;
+                      break;
+                    }
+                  }
+                  if(votedPlayer->team == T_NEUTRAL) {
+                    --neutralAlive;
+                  }
                   votedPlayer = NULL;
                   phase = GAMESTATE_NIGHT;
                   continue;
@@ -946,9 +974,29 @@ int main() {
             strcpy(name, allPlayers[n].name);
             printf("%s disconnected\n", name);
             int sd = allPlayers[n].sockd;
-            if(allPlayers[n].team == T_TOWN) movePlayer(sd, townPlayers, NULL);
-            if(allPlayers[n].team == T_MAFIA) movePlayer(sd, mafiaPlayers, NULL);
-            if(allPlayers[n].team == T_NEUTRAL) movePlayer(sd, neutralPlayers, NULL);
+            if(allPlayers[n].team == T_TOWN) {
+              --townAlive;
+              if(allPlayers[n].role == R_MEDIUM){
+                mediumSD = -1;
+              }
+              if(townAlive == 0) {
+                win = T_MAFIA;
+                break;
+              }
+              movePlayer(sd, townPlayers, NULL);
+            }
+            if(allPlayers[n].team == T_MAFIA) {
+              --mafiaAlive;
+              if(mafiaAlive == 0) {
+                win = T_TOWN;
+                break;
+              }
+              movePlayer(sd, mafiaPlayers, NULL);
+            }
+            if(allPlayers[n].team == T_NEUTRAL) {
+              --neutralAlive;
+              movePlayer(sd, neutralPlayers, NULL);
+            }
             //printf("removing from all");
             movePlayer(sd, allPlayers, NULL);
             sprintf(buffer, "[%d] %s disconnected", n, name);
@@ -1214,9 +1262,29 @@ int main() {
             strcpy(name, allPlayers[n].name);
             printf("%s disconnected\n", name);
             int sd = allPlayers[n].sockd;
-            if(allPlayers[n].team == T_TOWN) movePlayer(sd, townPlayers, NULL);
-            if(allPlayers[n].team == T_MAFIA) movePlayer(sd, mafiaPlayers, NULL);
-            if(allPlayers[n].team == T_NEUTRAL) movePlayer(sd, neutralPlayers, NULL);
+            if(allPlayers[n].team == T_TOWN) {
+              --townAlive;
+              if(allPlayers[n].role == R_MEDIUM){
+                mediumSD = -1;
+              }
+              if(townAlive == 0) {
+                win = T_MAFIA;
+                break;
+              }
+              movePlayer(sd, townPlayers, NULL);
+            }
+            if(allPlayers[n].team == T_MAFIA) {
+              --mafiaAlive;
+              if(mafiaAlive == 0) {
+                win = T_TOWN;
+                break;
+              }
+              movePlayer(sd, mafiaPlayers, NULL);
+            }
+            if(allPlayers[n].team == T_NEUTRAL) {
+              --neutralAlive;
+              movePlayer(sd, neutralPlayers, NULL);
+            }
             //printf("removing from all");
             movePlayer(sd, allPlayers, NULL);
             sprintf(buffer, "[%d] %s disconnected", n, name);
@@ -1257,11 +1325,47 @@ int main() {
     }
   }
 
+  sendMessage("Winners:", allPlayers, -1);
+
   if(win == T_TOWN){
-    sendMessage("THE TOWN HAS WON!", allPlayers, -1);
+    if(jesterWin) {
+      sprintf(buffer, "Jester: %s", neutralPlayers[R_JESTER].name);
+      sendMessage(buffer, allPlayers, -1);
+    }
+    if(executionerWin) {
+      sprintf(buffer, "Executioner: %s", neutralPlayers[R_EXECUTIONER].name);
+      sendMessage(buffer, allPlayers, -1);
+    }
+    strcpy(buffer, "Townies: ");
+    char temp[BUFFER_SIZE];
+    for(int j = 0; j < MAX_PLAYERS; ++j) {
+      if(townPlayers[j].sockd > 0) {
+        sprintf(temp, "%s (%s), ", townPlayers[j].name, intToRole(j, T_TOWN));
+        strcat(buffer, temp);
+      }
+    }
+    buffer[strlen(buffer)-2] = '\0';
+    sendMessage(buffer, allPlayers, -1);
   }
   if(win == T_MAFIA){
-    sendMessage("THE MAFIA HAS WON!", allPlayers, -1);
+    if(jesterWin) {
+      sprintf(buffer, "Jester: %s", neutralPlayers[R_JESTER].name);
+      sendMessage(buffer, allPlayers, -1);
+    }
+    if(executionerWin) {
+      sprintf(buffer, "Executioner: %s", neutralPlayers[R_EXECUTIONER].name);
+      sendMessage(buffer, allPlayers, -1);
+    }
+    strcpy(buffer, "Mafia: ");
+    char temp[BUFFER_SIZE];
+    for(int j = 0; j < MAX_PLAYERS; ++j) {
+      if(mafiaPlayers[j].sockd > 0) {
+        sprintf(temp, "%s (%s), ", mafiaPlayers[j].name, intToRole(j, T_MAFIA));
+        strcat(buffer, temp);
+      }
+    }
+    buffer[strlen(buffer)-2] = '\0';
+    sendMessage(buffer, allPlayers, -1);
   }
 
 
