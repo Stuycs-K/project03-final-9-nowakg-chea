@@ -1178,7 +1178,7 @@ int main() {
               }
               else singleMessage("You can only use your role ability during the night.", allPlayers[n].sockd, -1, NULL);
             }
-            else if(allPlayers[n].team == T_TOWN){
+            else if(allPlayers[n].team == T_TOWN || allPlayers[n].team == T_NEUTRAL){
               if(allPlayers[n].role == R_MAYOR){
                 if(phase == GAMESTATE_NIGHT || phase == GAMESTATE_RUN_NIGHT){
                   singleMessage("You must wait until day time in order to reveal to the town that you are the mayor.", allPlayers[n].sockd, -1, NULL);
