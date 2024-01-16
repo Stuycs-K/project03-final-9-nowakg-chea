@@ -454,8 +454,8 @@ int main() {
 
   sendMessage("Your team:", mafiaPlayers, -1);
   for(int i = 0; i < MAX_PLAYERS; ++i) {
-    if(mafiaPlayers[i].sockd > 0) {
-      sprintf(buffer, "[%d] %s - %s", i, mafiaPlayers[i].name, intToRole(mafiaPlayers[i].role, mafiaPlayers[i].team));
+    if(allPlayers[i].sockd > 0 && allPlayers[i].team == T_MAFIA) {
+      sprintf(buffer, "[%d] %s - %s", i, allPlayers[i].name, intToRole(allPlayers[i].role, allPlayers[i].team));
       sendMessage(buffer, mafiaPlayers, -1);
     }
   }
@@ -936,7 +936,7 @@ int main() {
           if( strncmp(buffer, "/role ", strlen("/role ")) == 0) {
             printf("role sent\n");
             char* temp = parsePlayerCommand(buffer, "/role ");
-            printf("temp: %s\n", temp);
+            printf("temp: '%s'\n", temp);
 
             if(allPlayers[n].team == T_MAFIA) {
               if(phase == GAMESTATE_NIGHT) {
