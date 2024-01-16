@@ -115,15 +115,15 @@ void timerSubserver(int toServer, int fromServer) {
     read(fromServer, &phase, sizeof(int));
     printf("phase (time): %d \n", phase);
     switch(phase) {
-      case GAMESTATE_DAY: time = 3; break; //originally 15
-      case GAMESTATE_DISCUSSION: time = 3; break; //originally 45
+      case GAMESTATE_DAY: time = 45; break; //originally 15
+      case GAMESTATE_DISCUSSION: time = 60; break; //originally 45
       case GAMESTATE_VOTING: time = 30; break;
-      case GAMESTATE_DEFENSE: time = 20; break;
+      case GAMESTATE_DEFENSE: time = 30; break; //originally 20
       case GAMESTATE_JUDGEMENT: time = 20; break;
       case GAMESTATE_VOTE_COUNTING: time = 1; break;
       case GAMESTATE_LASTWORDS: time = 7; break;
       case GAMESTATE_KILL_VOTED: time = 5; break;
-      case GAMESTATE_NIGHT: time = 37; break;
+      case GAMESTATE_NIGHT: time = 45; break; //orignally 37
       case GAMESTATE_RUN_NIGHT: time = 5; break;
     }
     while(time--) {
