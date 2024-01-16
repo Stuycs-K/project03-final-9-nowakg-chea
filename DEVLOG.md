@@ -96,4 +96,4 @@ Fixed a bug where killing player with id 0 would say player not found.
 Added player-to-player whispering with gray font.
 
 ### 2024-01-15 - Brief description
-Expanded description including how much time was spent on task.
+Implemented retrobutionist godfather-mafioso interaction, fixed killing/executing players, made chats different colors, and fixed a lot of minor bugs with Gaven
