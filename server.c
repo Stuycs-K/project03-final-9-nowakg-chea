@@ -257,22 +257,22 @@ int main() {
   //start giving roles to each player
   for(int i = 0; i < playerCount; ++i) {
 
-    if(i == 0) {
-      allPlayers[i].team = T_NEUTRAL;
-      allPlayers[i].role = R_JESTER;
-      alivePlayers[i].team = T_NEUTRAL;
-      alivePlayers[i].role = R_JESTER;
-      neutralPlayers[R_JESTER] = allPlayers[i];
-      continue;
-    }
     // if(i == 0) {
-    //   allPlayers[i].team = T_TOWN;
-    //   allPlayers[i].role = R_VETERAN;
-    //   alivePlayers[i].team = T_TOWN;
-    //   alivePlayers[i].role = R_VETERAN;
-    //   townPlayers[R_VETERAN] = allPlayers[i];
+    //   allPlayers[i].team = T_NEUTRAL;
+    //   allPlayers[i].role = R_EXECUTIONER;
+    //   alivePlayers[i].team = T_NEUTRAL;
+    //   alivePlayers[i].role = R_EXECUTIONER;
+    //   neutralPlayers[R_EXECUTIONER] = allPlayers[i];
     //   continue;
     // }
+    if(i == 0) {
+      allPlayers[i].team = T_TOWN;
+      allPlayers[i].role = R_JAILOR;
+      alivePlayers[i].team = T_TOWN;
+      alivePlayers[i].role = R_JAILOR;
+      townPlayers[R_JAILOR] = allPlayers[i];
+      continue;
+    }
     // if(i == 0) {
     //   allPlayers[i].team = T_MAFIA;
     //   allPlayers[i].role = R_BLACKMAILER;
@@ -366,7 +366,7 @@ int main() {
   int mediumSD = -1;
 
   //for when jailor needs to jail his prisoner
-  int jailorSD = -1;
+  int jailorID = -1;
 
   //for reading whsipers
   int blackmailerSD = -1;
@@ -383,6 +383,8 @@ int main() {
     allPlayers[i].rolePriority = -1;
     allPlayers[i].visiting = -1;
     allPlayers[i].blackmailed = FALSE;
+    allPlayers[jailorID].jailorPrisonerID = -1;
+
     for(int n = 0; n < MAX_PLAYERS; n++){
       allPlayers[i].visitorsID[n] = -1;
     }
@@ -413,9 +415,10 @@ int main() {
           allPlayers[i].rolePriority = 4;
           break;
         case R_JAILOR:
-          jailorSD = allPlayers[i].sockd; //for later when jailor jails people
+          jailorID = i; //for later when jailor jails people
           allPlayers[i].attack = UNSTOPPABLE_ATTACK;
           allPlayers[i].rolePriority = 5;
+          allPlayers[i].jailorPrisonerID = -1;
           break;
         case R_VIGILANTE:
           allPlayers[i].attack = BASIC_ATTACK;
@@ -746,7 +749,16 @@ int main() {
                     continue;
                   }
                   allPlayers[n].blackmailed = FALSE;
+
+                  //throw the jailor's prisoner in jail
+                  if(allPlayers[n].role == R_JAILOR && allPlayers[allPlayers[jailorID].jailorPrisonerID].sockd > 0 && allPlayers[allPlayers[jailorID].jailorPrisonerID].alive == TRUE){
+                    singleMessage("You've been hauled to jail! The jailor is now going to interrogate you.", allPlayers[allPlayers[jailorID].jailorPrisonerID].sockd, -1, "Jailor");
+                    allPlayers[allPlayers[jailorID].jailorPrisonerID].addedDefense = POWERFUL_DEFENSE;
+                    continue;
+                  }
                 }
+
+
 
 
                 sendMessage("Talk to other mafia players and conspire to eliminate the town! Use /role target to do your role's action. If you have a role that requires you to target yourself do /role your-name.", mafiaPlayers, -1);
@@ -791,8 +803,18 @@ int main() {
 
                     // allPlayers[allPlayers[n].visitorsID[i]] is visitor
                     char visitorRelay[BUFFER_SIZE] = "";
-                    if(allPlayers[allPlayers[n].visitorsID[i]].team == T_TOWN){
 
+                    //throw the jailor's prisoner in jail they can't do their role action if they are in jail
+                    if(i == allPlayers[jailorID].jailorPrisonerID){
+                      sprintf(visitorRelay, "You've been hauled to jail! You couldn't preform your action tonight.");
+                      singleMessage(visitorRelay, allPlayers[i].sockd, -1, NULL);
+                      allPlayers[allPlayers[jailorID].jailorPrisonerID].addedDefense = POWERFUL_DEFENSE;
+                      //reset jailorPrisonerID
+                      allPlayers[jailorID].jailorPrisonerID = -1;
+                      continue;
+                    }
+
+                    if(allPlayers[allPlayers[n].visitorsID[i]].team == T_TOWN){
                       switch ( allPlayers[allPlayers[n].visitorsID[i]].role ){
                         case R_DOCTOR:
                           allPlayers[n].addedDefense = POWERFUL_DEFENSE;
@@ -903,6 +925,21 @@ int main() {
                         }
                         else{
                             sprintf(visitorRelay, "You tried to kill %s but their defence was too high! your attack %d, their defense: %d, their added defense: %d", allPlayers[n].name, allPlayers[allPlayers[n].visitorsID[i]].attack , allPlayers[n].defense, allPlayers[n].addedDefense  );
+                        }
+                      }
+
+                      if(allPlayers[n].role == R_JAILOR && allPlayers[n].executePrisoner == TRUE){
+                        char jailorMessage[BUFFER_SIZE];
+                        if(allPlayers[n].attack > allPlayers[allPlayers[n].visitorsID[i]].defense && allPlayers[n].attack > allPlayers[allPlayers[n].visitorsID[i]].addedDefense){
+                          //KILL PLAYER HERE
+                          movePlayer(allPlayers[allPlayers[n].visitorsID[i]].sockd, alivePlayers, dyingPlayers);
+                          sprintf(jailorMessage, "You executed %s! They are dead.", allPlayers[allPlayers[n].visitorsID[i]].name);
+                          singleMessage(jailorMessage, allPlayers[n].sockd, -1, NULL);
+                          sprintf(visitorRelay, "You were killed by the jailor!");
+                        }
+                        else{
+                          sprintf(jailorMessage, "You tried to kill %s but their defence was too high! your attack %d, their defense: %d, their added defense: %d", allPlayers[n].name, allPlayers[allPlayers[n].visitorsID[i]].attack , allPlayers[n].defense, allPlayers[n].addedDefense  );
+                          singleMessage(jailorMessage, allPlayers[n].sockd, -1, NULL);
                         }
                       }
                       singleMessage(visitorRelay, allPlayers[allPlayers[n].visitorsID[i]].sockd, -1, NULL);
@@ -1098,6 +1135,54 @@ int main() {
               }
 
 
+              if(allPlayers[n].role == R_JAILOR){
+                if( ( phase == GAMESTATE_NIGHT || phase == GAMESTATE_RUN_NIGHT ) && allPlayers[n].jailorPrisonerID >= 0){
+                  if(strcmp(temp, allPlayers[n].name) != 0){
+                    singleMessage("Are you sure you want to execute your prisoner? If so, type /role your-name.", allPlayers[n].sockd, -1, NULL);
+                    continue;
+                  }
+                  else{
+                    if(allPlayers[n].executePrisoner == TRUE){
+                      singleMessage("You have decided to NOT kill your prisoner.", allPlayers[n].sockd, -1, NULL);
+                      singleMessage("The jailor has decided to NOT execute you.", allPlayers[allPlayers[n].jailorPrisonerID].sockd, -1, NULL);
+                      allPlayers[n].executePrisoner = FALSE;
+                    }
+                    else{
+                      singleMessage("You have decided to kill your prisoner.", allPlayers[n].sockd, -1, NULL);
+                      singleMessage("The jailor has decided to execute you.", allPlayers[allPlayers[n].jailorPrisonerID].sockd, -1, NULL);
+                      allPlayers[n].executePrisoner = TRUE;
+                    }
+                  }
+                }
+                else{
+                  if(strcmp(temp, allPlayers[n].name) == 0){
+                    singleMessage("Choose another player to send to jail tonight. Not yourself.", allPlayers[n].sockd, -1, NULL);
+                    continue;
+                  }
+                  else{
+                    char jailorMessage[BUFFER_SIZE];
+                    //crummy but im tired so whatever
+                    int foundPrisoner = FALSE;
+                    for(int i = 0; i < MAX_PLAYERS; i++){
+                      if( allPlayers[i].sockd > 0 && strcmp(temp, allPlayers[i].name) == 0) {
+                        allPlayers[n].jailorPrisonerID = i;
+                        printf("jailor prisoner ID: %d",allPlayers[n].jailorPrisonerID);
+                        foundPrisoner = TRUE;
+                        break;
+                      }
+                    }
+                    if(foundPrisoner){
+                      sprintf(jailorMessage, "You have decided to drag %s to prison tonight.", temp);
+                    }
+                    else{
+                      sprintf(jailorMessage, "Player %s not found. Try again.", temp);
+                    }
+                    singleMessage(jailorMessage, allPlayers[n].sockd, -1, NULL);
+                  }
+                }
+                continue;
+            }
+
 
               //the below code is for roles that need to VISIT other players. the code above is for roles that stay home
 
@@ -1245,6 +1330,12 @@ int main() {
                 }
                 if(allPlayers[n].sockd > 0 && allPlayers[n].role == R_MEDIUM) {
                   sendMessage(buffer, deadPlayers, allPlayers[n].role);
+                }
+                if( allPlayers[n].sockd > 0 && allPlayers[n].role == R_JAILOR && allPlayers[n].jailorPrisonerID >= 0) {
+                  singleMessage(buffer, allPlayers[allPlayers[n].jailorPrisonerID].sockd, -2, "Jailor");
+                }
+                if( n == allPlayers[jailorID].jailorPrisonerID && allPlayers[allPlayers[jailorID].jailorPrisonerID].sockd > 0 ){
+                  singleMessage(buffer, allPlayers[jailorID].sockd, n, allPlayers[n].name);
                 }
                 break;
             }
