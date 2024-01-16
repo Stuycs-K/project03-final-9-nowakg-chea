@@ -115,8 +115,8 @@ void timerSubserver(int toServer, int fromServer) {
     read(fromServer, &phase, sizeof(int));
     printf("phase (time): %d \n", phase);
     switch(phase) {
-      case GAMESTATE_DAY: time = 3; break; //originally 15
-      case GAMESTATE_DISCUSSION: time = 3; break; //originally 45
+      case GAMESTATE_DAY: time = 15; break;
+      case GAMESTATE_DISCUSSION: time = 30; break;
       case GAMESTATE_VOTING: time = 30; break;
       case GAMESTATE_DEFENSE: time = 20; break;
       case GAMESTATE_JUDGEMENT: time = 20; break;
@@ -288,14 +288,14 @@ int main() {
       --mafiaCount;
       continue;
     }
-    // if(i == 0) {
-    //   allPlayers[i].team = T_MAFIA;
-    //   allPlayers[i].role = R_BLACKMAILER;
-    //   alivePlayers[i].team = T_MAFIA;
-    //   alivePlayers[i].role = R_BLACKMAILER;
-    //   mafiaPlayers[R_BLACKMAILER] = allPlayers[i];
-    //   continue;
-    // }
+    if(i == 2) {
+      allPlayers[i].team = T_TOWN;
+      allPlayers[i].role = R_RETROBUTIONIST;
+      alivePlayers[i].team = T_TOWN;
+      alivePlayers[i].role = R_RETROBUTIONIST;
+      townPlayers[R_BLACKMAILER] = allPlayers[i];
+      continue;
+    }
 
     //decide the team
     //printf("Player: %d\n", i);
@@ -388,6 +388,8 @@ int main() {
   //for reading whsipers
   int blackmailerSD = -1;
 
+  int revivedID = -1;
+
   for(int i = 0; i < playerCount; ++i) {
     printf("%s: %s %s\n", allPlayers[i].name, intToTeam(allPlayers[i].team), intToRole(allPlayers[i].role, allPlayers[i].team));
     write(allPlayers[i].sockd, intToRole(allPlayers[i].role, allPlayers[i].team), BUFFER_SIZE);
@@ -421,6 +423,7 @@ int main() {
           break;
         case R_RETROBUTIONIST:
           allPlayers[i].rolePriority = 1;
+          allPlayers[i].veteranAlertCount = 1;
           break;
         case R_DOCTOR:
           allPlayers[i].rolePriority = 3;
@@ -532,6 +535,28 @@ int main() {
   while(win < 0){
     printf("new phase: %d\n", phase);
     if(phase == GAMESTATE_DISCUSSION) {
+
+      if(revivedID > -1) {
+        alivePlayers[revivedID] = deadPlayers[revivedID];
+        deadPlayers[revivedID].sockd = 0;
+        sprintf(buffer, "[%d] %s was revived last night!", revivedID, allPlayers[revivedID].name);
+        sendMessage(buffer, allPlayers, -1);
+        singleMessage("You have been revived!", allPlayers[revivedID].sockd, -1, NULL);
+        if(allPlayers[revivedID].team == T_TOWN) {
+          townPlayers[allPlayers[revivedID].role].alive = TRUE;
+          ++townAlive;
+        }
+        if(allPlayers[revivedID].team == T_MAFIA) {
+          mafiaPlayers[allPlayers[revivedID].role].alive = TRUE;
+          ++mafiaAlive;
+        }
+        if(allPlayers[revivedID].team == T_NEUTRAL) {
+          neutralPlayers[allPlayers[revivedID].role].alive = TRUE;
+          ++neutralAlive;
+        }
+        ++playerCount;
+        revivedID = -1;
+      }
 
         //move dying players to dead players and reset everyone's addedAttack and addedDefense
       for(int i = 0; i < MAX_PLAYERS; ++i) {
@@ -1247,6 +1272,29 @@ int main() {
                 }
                 continue;
             }
+            if(allPlayers[n].role == R_RETROBUTIONIST){
+                if( ( phase == GAMESTATE_NIGHT || phase == GAMESTATE_RUN_NIGHT ) && allPlayers[n].veteranAlertCount > 0){
+                  int target = -1;
+                  for(int j = 0; j < MAX_PLAYERS; ++j) {
+                    if(deadPlayers[j].sockd > 0 && strcmp(deadPlayers[j].name, temp) == 0) {
+                      target = j;
+                      break;
+                    }
+                  }
+                  if(target == -1) {
+                    singleMessage("That player is either alive, disconnected, or doesn't exist.", allPlayers[n].sockd, -1, NULL);
+                  } else {
+                    singleMessage("Player successfully selected for revival.", allPlayers[n].sockd, -1, NULL);
+                    revivedID = target;
+                    allPlayers[n].veteranAlertCount--;
+                  }
+                }
+                else{
+                  if(allPlayers[n].veteranAlertCount == 0) singleMessage("You have already revived someone.", allPlayers[n].sockd, -1, NULL);
+                  else singleMessage("You may only use your ability during the night.", allPlayers[n].sockd, -1, NULL);
+                }
+                continue;
+            }
 
 
               //the below code is for roles that need to VISIT other players. the code above is for roles that stay home
@@ -1464,7 +1512,8 @@ int main() {
 
 
     nextPhase = 0;
-    phase++;
+    if(phase == GAMESTATE_DAY) phase = GAMESTATE_NIGHT;
+    else phase++;
     if(phase == GAMESTATE_RUN_NIGHT + 1) phase = GAMESTATE_DISCUSSION;
   }
 
