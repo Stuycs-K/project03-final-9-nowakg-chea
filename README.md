@@ -68,7 +68,7 @@ How does the user interact with this program?
   During the night all the mafia members are able to speak to each other.
   Godfather: During the night you and the mafioso will choose who to kill. Your decision overrides the mafioso's and the mafioso will always be the one to go and murder the player that is selected. You will not appear
   as a criminal to the Sheriff.
-  Mafioso: During the night you and the Godfather will choose who to kill. If the Godfather dies you become the Godfather.
+  Mafioso: During the night you and the Godfather will choose who to kill. If the Godfather dies you become the Godfather in spirit... not in the game though.
   Consigliere: During the night you can go out and figure out a player's role.
   Blackmailer: During the night you can go out and blackmail someone, which prevents them from talking the next day. Also, you get to hear everyone's whispers.
 
@@ -78,3 +78,17 @@ How does the user interact with this program?
   Serial Killer: During the night, go out and kill someone. You must kill everyone to win. You will not appear as a criminal to the Sheriff.
   Executioner: The game will randomly select you a target. You must publicly execute this person in order to win. What happens after that doesn't really matter to you, so you can side with Mafia or Town.
   Jester: You must convince the town to publicly execute you. Then, you get to haunt someone and kill them. What happens after that doesn't really matter to you, so you can side with Mafia or Town.
+
+
+
+
+
+
+
+
+
+
+
+   BUGS:
+
+   

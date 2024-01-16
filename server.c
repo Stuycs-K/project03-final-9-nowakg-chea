@@ -280,20 +280,21 @@ int main() {
       continue;
     }
     if(i == 1) {
-      allPlayers[i].team = T_MAFIA;
-      allPlayers[i].role = R_MAFIOSO;
-      alivePlayers[i].team = T_MAFIA;
-      alivePlayers[i].role = R_MAFIOSO;
-      mafiaPlayers[R_MAFIOSO] = allPlayers[i];
-      --mafiaCount;
+      allPlayers[i].team = T_TOWN;
+      allPlayers[i].role = R_VETERAN;
+      alivePlayers[i].team = T_TOWN;
+      alivePlayers[i].role = R_VETERAN;
+      townPlayers[R_VETERAN] = allPlayers[i];
+      --townCount;
       continue;
     }
     if(i == 2) {
-      allPlayers[i].team = T_TOWN;
-      allPlayers[i].role = R_RETROBUTIONIST;
-      alivePlayers[i].team = T_TOWN;
-      alivePlayers[i].role = R_RETROBUTIONIST;
-      townPlayers[R_BLACKMAILER] = allPlayers[i];
+      allPlayers[i].team = T_NEUTRAL;
+      allPlayers[i].role = R_SERIALKILLER;
+      alivePlayers[i].team = T_NEUTRAL;
+      alivePlayers[i].role = R_SERIALKILLER;
+      neutralPlayers[R_SERIALKILLER] = allPlayers[i];
+      --neutralCount;
       continue;
     }
 
@@ -370,13 +371,14 @@ int main() {
     if(team == T_NEUTRAL) neutralPlayers[role] = allPlayers[i];
   }
 
- 
+
 
   sendMessage("Game: Your role and team is...", allPlayers, -1);
 
   int townAlive = 0;
   int mafiaAlive = 0;
   int neutralAlive = 0;
+  int serialKillerAlive = 0;
   //used for win conditions LATER
 
   // used for later when dead people need to chat to the medium
@@ -482,6 +484,7 @@ int main() {
         case R_SERIALKILLER:
           allPlayers[i].defense = BASIC_DEFENSE;
           allPlayers[i].attack = BASIC_ATTACK;
+          serialKillerAlive = TRUE;
           break;
         }
 
@@ -582,6 +585,9 @@ int main() {
           }
           if(deadPlayers[i].team == T_NEUTRAL) {
             --neutralAlive;
+            if(deadPlayers[i].role == R_SERIALKILLER){
+              serialKillerAlive = FALSE;
+            }
           }
           sprintf(buffer, "%s died last night. Their role was %s.", deadPlayers[i].name, intToRole(deadPlayers[i].role, deadPlayers[i].team));
           sendMessage(buffer, allPlayers, -1);
@@ -595,11 +601,11 @@ int main() {
     }
 
     //win logic
-    if(mafiaAlive == 0){
+    if(mafiaAlive == 0 && serialKillerAlive == FALSE){
       win = T_TOWN;
       break;
     }
-    if(townAlive == 0){
+    if(townAlive == 0 && serialKillerAlive == FALSE){
       win = T_MAFIA;
       break;
     }
@@ -777,6 +783,9 @@ int main() {
                   }
                   if(votedPlayer->team == T_NEUTRAL) {
                     --neutralAlive;
+                    if(votedPlayer->role == R_SERIALKILLER){
+                      serialKillerAlive = FALSE;
+                    }
                   }
                   votedPlayer = NULL;
                   phase = GAMESTATE_NIGHT;
@@ -1115,7 +1124,7 @@ int main() {
 
             if(allPlayers[n].team == T_MAFIA) {
               if(phase == GAMESTATE_NIGHT) {
-                
+
                 int targetID;
                 printf("\n\nROLE ACTION!!\n\n");
                 if(allPlayers[n].role == R_GODFATHER && mafiaPlayers[R_MAFIOSO].sockd > 0 && mafiaPlayers[R_MAFIOSO].alive) { //godfather and mafioso, godfather sends
