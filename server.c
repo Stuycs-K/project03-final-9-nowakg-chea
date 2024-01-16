@@ -382,7 +382,8 @@ int main() {
         case R_VETERAN:
           allPlayers[i].attack = POWERFUL_ATTACK;
           allPlayers[i].rolePriority = 1;
-          allPlayers[i].veteranAlert = 3;
+          allPlayers[i].veteranAlert = FALSE;
+          allPlayers[i].veteranAlertCount = 3;
           break;
         case R_MEDIUM:
           mediumSD = allPlayers[i].sockd; //for later that medium can talk to dead at night
@@ -407,6 +408,7 @@ int main() {
         case R_VIGILANTE:
           allPlayers[i].attack = BASIC_ATTACK;
           allPlayers[i].rolePriority = 5;
+          allPlayers[i].vigilanteBullets = 3;
           break;
         case R_MAYOR:
           allPlayers[i].rolePriority = 1;
@@ -780,10 +782,17 @@ int main() {
                           break;
 
                         case R_VIGILANTE:
+
+                          if(allPlayers[allPlayers[n].visitorsID[i]].vigilanteBullets <= 0){
+                            sprintf(visitorRelay, "You went to %s's home but you had no bullets left to shoot them with!", allPlayers[n].name);
+                            continue;
+                          }
+
+                          allPlayers[allPlayers[n].visitorsID[i]].vigilanteBullets--;
                           if(allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].defense && allPlayers[allPlayers[n].visitorsID[i]].attack > allPlayers[n].addedDefense){
                             //KILL PLAYER HERE
                             movePlayer(allPlayers[n].sockd, alivePlayers, deadPlayers);
-                            sprintf(visitorRelay, "You killed %s!", allPlayers[n].name);
+                            sprintf(visitorRelay, "You killed %s! You have %d bullets left in your gun to kill other players.", allPlayers[n].name, allPlayers[allPlayers[n].visitorsID[i]].vigilanteBullets);
 
                             if(allPlayers[n].team == T_TOWN){
                               //KILL PLAYER HERE
@@ -793,7 +802,7 @@ int main() {
 
                           }
                           else{
-                            sprintf(visitorRelay, "You tried to kill %s but their defence was too high! your attack %d, their defense: %d, their added defense: %d", allPlayers[n].name, allPlayers[allPlayers[n].visitorsID[i]].attack , allPlayers[n].defense, allPlayers[n].addedDefense  );
+                            sprintf(visitorRelay, "You tried to kill %s but their defence was too high! your attack %d, their defense: %d, their added defense: %d. You have %d bullets left in your gun to kill other players. ", allPlayers[n].name, allPlayers[allPlayers[n].visitorsID[i]].attack , allPlayers[n].defense, allPlayers[n].addedDefense , allPlayers[allPlayers[n].visitorsID[i]].vigilanteBullets );
                           }
                           break;
                         }
@@ -978,6 +987,7 @@ int main() {
               }
 
               if(allPlayers[n].role == R_VETERAN){
+                char vetAlert[BUFFER_SIZE];
                 if(phase == GAMESTATE_NIGHT || phase == GAMESTATE_RUN_NIGHT){
                   if(allPlayers[n].veteranAlert == TRUE){
                     singleMessage("You are alert for enemies that may try to kill you.", allPlayers[n].sockd, -1, NULL);
@@ -993,17 +1003,31 @@ int main() {
                 }
                 else{
                   if(allPlayers[n].veteranAlert == TRUE){
-                    singleMessage("You have decided to NOT go on alert.", allPlayers[n].sockd, -1, NULL);
-                    allPlayers[n].veteranAlert = FALSE;
+                    allPlayers[n].veteranAlertCount++;
+                    sprintf(vetAlert, "You have decided to NOT go on alert. After tonight you can go on alert only %d more times.", allPlayers[n].veteranAlertCount);
+                    singleMessage(vetAlert, allPlayers[n].sockd, -1, NULL);
+                    allPlayers[n].veteranAlert = FALSE;        
                   }
                   else{
-                    singleMessage("You have decided to go on alert.", allPlayers[n].sockd, -1, NULL);
-                    allPlayers[n].veteranAlert = TRUE;
+                    if(allPlayers[n].veteranAlertCount > 0){
+                      allPlayers[n].veteranAlertCount--;
+                      sprintf(vetAlert, "You have decided to go on alert. After tonight you can go on alert only %d more times.", allPlayers[n].veteranAlertCount);
+                      singleMessage(vetAlert, allPlayers[n].sockd, -1, NULL);
+                      allPlayers[n].veteranAlert = TRUE;
+                    }
+                    else{
+                      singleMessage("You cannot go on alert anymore. You have exhausted yourself.", allPlayers[n].sockd, -1, NULL);
+                    }
+
                   }
 
                 }
                 continue;
               }
+
+
+
+              //the below code is for roles that need to VISIT other players. the code above is for roles that stay home
 
               int targetID = roleAction(allPlayers, n, temp);
               if(targetID == -1) singleMessage("Player not found", allPlayers[n].sockd, -1, NULL);
