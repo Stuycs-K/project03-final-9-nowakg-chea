@@ -52,6 +52,7 @@ struct player {
   int visitorsID[MAX_PLAYERS]; int visiting;
   int veteranAlert; int veteranAlertCount;
   int vigilanteBullets;
+  int jailorPrisonerID; int executePrisoner;
   int blackmailed;
 };
 void err(int i, char*message);
