@@ -7,12 +7,13 @@ Andrew Che, Gaven Nowak
 
 ### Project Description:
 
-We are recreating a basic version of the video game "Town of Salem." In the game, there is a good team (Town) and an evil team (Mafia). The Mafia try to kill the entire Town every night, while the Town tries to figure out who is in the Mafia and vote to execute them in the morning. Within each team there are special roles, such as the Town's Mayor who has more voting power and the Mafia's Godfather who has his Mafioso do the killing for him to avoid getting caught.
+We are recreating a basic version of the video game "Town of Salem." In the game, there is a good team (Town) and an evil team (Mafia) as well as a few roles not aligned with either (Neutral). The Mafia try to kill the entire Town every night, while the Town tries to figure out who is in the Mafia and vote to execute them in the morning. Within each team there are special roles, such as the Town's Mayor who has more voting power and the Mafia's Godfather who has his Mafioso do the killing for him to avoid getting caught. The neutral players have their special win conditions, such as tricking the other players into voting to execute you (Jester) or getting a certain player voted (Executioner). A list of all the roles can be found below.
+During the day, everyone (alive) can talk in chat, and people can also whisper to each other (although others will be alerted whispering is taking place). In the night, only the mafia can talk to each other to coordinate kills. Each phase lasts a certain number of seconds, and the players are alerted when the current phase is about to end.
 
 ### Instructions:
 
 How does the user install/compile/run the program.
-  - install the C files, H files and the makefile inside of a file  
+  - install the C files, H files and the makefile inside of a folder
   - then, go to your terminal on the computer you want to host the game on and type 'make server' to setup the game server
   - then, go to your terminal on the computer you want to play the game on and type 'make client (IP ADDRESS OF SERVER)' to connect to the game server
 
