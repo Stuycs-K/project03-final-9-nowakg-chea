@@ -95,3 +95,4 @@ How does the user interact with this program?
 
 
    BUGS:
+Intercomputer connecting doesn't work despite reusing code from lab16
