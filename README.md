@@ -13,9 +13,13 @@ During the day, everyone (alive) can talk in chat, and people can also whisper t
 ### Instructions:
 
 How does the user install/compile/run the program.
-  - install the C files, H files and the makefile inside of a folder
-  - then, go to your terminal on the computer you want to host the game on and type 'make server' to setup the game server
-  - then, go to your terminal on the computer you want to play the game on and type 'make client (IP ADDRESS OF SERVER)' to connect to the game server
+  - install the C files, H files and the makefile inside of the project03 repository
+  - then, go to your terminal on the computer you want to host the game on and type 'make server' to setup the game server in the project03 repository
+  - then, go to your terminal on the computer you want to play the game on and type 'make client (IP ADDRESS OF SERVER)' in the project03 repository to connect to the game server
+
+  **MAJOR BUG: FOR SOME WEIRD REASON THE MAKE CLIENT (IP ADRESS) FEATURE HAS STOPPED WORKING AND NOW IT ONLY WORKS IF EVERY PLAYER IS CONNECTED TO THE SAME COMPUTER**
+
+  - everyone must now ssh to the same computer to cd into the repository to connect to the game
 
 How does the user interact with this program?
   - on the game server, once enough people have joined the game you can type /start to start the game
@@ -91,5 +95,3 @@ How does the user interact with this program?
 
 
    BUGS:
-
-   
