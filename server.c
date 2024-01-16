@@ -1,5 +1,6 @@
 #include "server.h"
 #include "role.h"
+#include "input.h"
 
 void err(int i, char*message){
   if(i < 0){
@@ -77,6 +78,18 @@ void sendMessage(char* message, struct player allPlayers[], int id){
   strcat(toClient, ": ");
   strcat(toClient, message);
   if(id == -1) strcat(toClient, "\033[0m");
+  for (int n = 0; n < MAX_PLAYERS; n++){
+    if(allPlayers[n].sockd > 0) write(allPlayers[n].sockd, toClient, BUFFER_SIZE);
+  }
+}
+
+void colorMessage(char* message, struct player allPlayers[], int id, int color){
+  char toClient[BUFFER_SIZE];
+  sprintf(toClient, "\033[%dm[%d] ", color, id);
+  strcat(toClient, allPlayers[id].name);
+  strcat(toClient, ": ");
+  strcat(toClient, message);
+  strcat(toClient, "\033[0m");
   for (int n = 0; n < MAX_PLAYERS; n++){
     if(allPlayers[n].sockd > 0) write(allPlayers[n].sockd, toClient, BUFFER_SIZE);
   }
@@ -257,14 +270,14 @@ int main() {
   //start giving roles to each player
   for(int i = 0; i < playerCount; ++i) {
 
-    if(i == 0) {
-      allPlayers[i].team = T_NEUTRAL;
-      allPlayers[i].role = R_JESTER;
-      alivePlayers[i].team = T_NEUTRAL;
-      alivePlayers[i].role = R_JESTER;
-      neutralPlayers[R_JESTER] = allPlayers[i];
-      continue;
-    }
+    // if(i == 0) {
+    //   allPlayers[i].team = T_NEUTRAL;
+    //   allPlayers[i].role = R_JESTER;
+    //   alivePlayers[i].team = T_NEUTRAL;
+    //   alivePlayers[i].role = R_JESTER;
+    //   neutralPlayers[R_JESTER] = allPlayers[i];
+    //   continue;
+    // }
     // if(i == 0) {
     //   allPlayers[i].team = T_TOWN;
     //   allPlayers[i].role = R_VETERAN;
@@ -273,14 +286,14 @@ int main() {
     //   townPlayers[R_VETERAN] = allPlayers[i];
     //   continue;
     // }
-    // if(i == 0) {
-    //   allPlayers[i].team = T_MAFIA;
-    //   allPlayers[i].role = R_BLACKMAILER;
-    //   alivePlayers[i].team = T_MAFIA;
-    //   alivePlayers[i].role = R_BLACKMAILER;
-    //   mafiaPlayers[R_BLACKMAILER] = allPlayers[i];
-    //   continue;
-    // }
+    if(i == 0) {
+      allPlayers[i].team = T_MAFIA;
+      allPlayers[i].role = R_BLACKMAILER;
+      alivePlayers[i].team = T_MAFIA;
+      alivePlayers[i].role = R_BLACKMAILER;
+      mafiaPlayers[R_BLACKMAILER] = allPlayers[i];
+      continue;
+    }
 
     //decide the team
     //printf("Player: %d\n", i);
@@ -1241,7 +1254,7 @@ int main() {
 
               case GAMESTATE_NIGHT:
                 if(allPlayers[n].sockd > 0 && allPlayers[n].team == T_MAFIA) {
-                  sendMessage(buffer, mafiaPlayers, allPlayers[n].role);
+                  colorMessage(buffer, mafiaPlayers, allPlayers[n].role, COLOR_RED);
                 }
                 if(allPlayers[n].sockd > 0 && allPlayers[n].role == R_MEDIUM) {
                   sendMessage(buffer, deadPlayers, allPlayers[n].role);
@@ -1293,7 +1306,7 @@ int main() {
             if(playerCount == 0) return 0;
             continue;
           } else {
-            sendMessage(buffer, deadPlayers, n);
+            colorMessage(buffer, deadPlayers, n, 90);
             if(mediumSD > 0){
               singleMessage(buffer, mediumSD, deadPlayers[n].sockd, deadPlayers[n].name);
             }
